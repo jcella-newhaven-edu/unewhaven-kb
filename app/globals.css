@@ -46,7 +46,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  /* :root {
+  :root {
     --paper: var(--deep);
     --surface: var(--campaign);
     --ink: #e3ebf5;
@@ -60,7 +60,7 @@
     --code-inline-bg: #1c2b48;
     --code-bg: #050f1a;
     --focus: var(--yellow);
-  } */
+  }
 }
 
 /* Base ------------------------------------------------------------------ */

@@ -2,14 +2,16 @@
   "name": "knowledge-base",
   "version": "2.0.0",
   "private": true,
-  "description": "A public, Markdown-powered knowledge base built with React (Next.js). Docker and Swarm ready.",
+  "description": "A public, Markdown-powered knowledge base built with React (Next.js), published to GitHub Pages.",
   "scripts": {
+    "predev": "node scripts/copy-media.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/copy-media.mjs",
     "build": "next build",
-    "start": "next start"
+    "preview": "npx --yes serve out"
   },
   "engines": {
-    "node": ">=20.9"
+    "node": ">=22.12"
   },
   "license": "MIT",
   "dependencies": {

@@ -1,14 +1,12 @@
-import { headers } from 'next/headers';
 import { getContent } from '@/lib/content';
 import { getSite } from '@/lib/config';
 
+export const dynamic = 'force-static';
+
+// Needs BASE_URL (set automatically by the GitHub Pages workflow) for absolute URLs.
 export default async function sitemap() {
   const content = await getContent();
-  let base = getSite().baseUrl;
-  if (!base) {
-    const h = await headers();
-    base = `${h.get('x-forwarded-proto') || 'http'}://${h.get('x-forwarded-host') || h.get('host')}`;
-  }
+  const base = getSite().baseUrl;
   return [
     { url: `${base}/` },
     ...content.allCategories().map((c) => ({ url: base + c.url })),

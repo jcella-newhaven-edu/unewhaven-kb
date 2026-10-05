@@ -1,46 +1,19 @@
-import Link from 'next/link';
-import ArticleList from '@/components/ArticleList';
+import { Suspense } from 'react';
+import SearchResults from '@/components/SearchResults';
 import { getContent } from '@/lib/content';
+import { getSite } from '@/lib/config';
 
-const readQuery = async (searchParams) => {
-  const q = (await searchParams).q;
-  return String(Array.isArray(q) ? q[0] : q || '').trim();
-};
+export const metadata = { title: 'Search', robots: { index: false } };
 
-export async function generateMetadata({ searchParams }) {
-  const q = await readQuery(searchParams);
-  return { title: q ? `Search: ${q}` : 'Search', robots: { index: false } };
-}
-
-export default async function SearchPage({ searchParams }) {
-  const q = await readQuery(searchParams);
+// The page itself is static; results are computed in the browser from search-index.json.
+export default async function SearchPage() {
   const content = await getContent();
-  const results = q ? content.search(q, 30) : [];
-
+  const topics = content.categoryList().map((c) => ({ title: c.title, url: c.url }));
   return (
     <main id="main" className="page">
-      {!q ? (
-        <>
-          <h1>Search</h1>
-          <p className="page-lede">Type a word or phrase in the search box above.</p>
-        </>
-      ) : results.length === 0 ? (
-        <>
-          <h1>No results for “{q}”</h1>
-          <p className="page-lede">Check the spelling, try a shorter phrase, or browse a topic below.</p>
-          <ul className="topic-links">
-            {content.categoryList().map((c) => (
-              <li key={c.slug}><Link href={c.url}>{c.title}</Link></li>
-            ))}
-          </ul>
-        </>
-      ) : (
-        <>
-          <h1>Results for “{q}”</h1>
-          <p className="page-lede">{results.length} {results.length === 1 ? 'article' : 'articles'} found</p>
-          <ArticleList items={results} showCategory />
-        </>
-      )}
+      <Suspense fallback={<h1>Search</h1>}>
+        <SearchResults topics={topics} locale={getSite().locale} siteName={getSite().name} />
+      </Suspense>
     </main>
   );
 }

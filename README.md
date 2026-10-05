@@ -1,65 +1,73 @@
-# Knowledge Base (React / Next.js)
+# Knowledge Base (React / Next.js on GitHub Pages)
 
-A public, searchable knowledge base built with **React 19** and **Next.js 16** (App Router). Articles are plain Markdown files in folders; there is no database. Pages are rendered on the server, so they're fast, indexable by search engines, and readable before JavaScript loads. Ships with a production Dockerfile and a compose file that works with `docker compose`, `docker stack deploy` (Swarm), and Portainer stacks.
+A public, searchable knowledge base built with **React 19** and **Next.js 16**. Articles are Markdown files in folders. Every push to `main` builds the site into static HTML and publishes it to **GitHub Pages**: no server, database or Docker.
 
 ## Features
 
-- Markdown articles with front matter (title, description, tags, order, draft, updated date)
-- Topics from folders, with optional `_category.md` for name, description and order
-- Full-text search with typo tolerance and prefix matching (MiniSearch), plus live suggestions as you type
+- Markdown articles with front matter (title, description, tags, order, draft, updated date, banner)
+- Topics from folders, nested to any depth, with optional `_category.md` and `index.md` overview pages
+- Search that runs in the browser, with typo tolerance and live suggestions
 - Callouts (`> [!NOTE]`, `[!TIP]`, `[!WARNING]`…), article banners and a site-wide banner
-- Syntax highlighting, tables, task lists, table of contents, previous/next links, tags
-- Relative links like `../deployment/configuration.md` rewritten to site URLs
-- Content changes picked up automatically, no rebuild or restart
-- Sanitized article HTML, security headers and Content-Security-Policy
-- Self-hosted fonts (no third-party requests), light and dark themes
-- `sitemap.xml`, `robots.txt`, canonical URLs, Open Graph tags
-- `/healthz` and `/readyz` endpoints, non-root container, read-only filesystem
+- Syntax highlighting, tables, table of contents, previous/next links, tags
+- "Updated" dates from each file's last Git commit
+- Sitemap, canonical URLs, light and dark themes, self-hosted fonts
 
-## Run locally
+## Publish on GitHub Pages
+
+1. Push this project to a GitHub repository.
+2. In the repository, open **Settings → Pages** and set **Source** to **GitHub Actions**.
+3. Push to `main`, or run **Deploy to GitHub Pages** from the **Actions** tab.
+
+The site appears at `https://YOUR-USERNAME.github.io/YOUR-REPO/`. Every later push to `main` republishes it within a minute or two.
+
+On a free GitHub plan, Pages requires a public repository.
+
+### Custom domain
+
+Add the domain in **Settings → Pages → Custom domain**, follow GitHub's DNS instructions, then re-run the workflow. It detects the domain and builds for it automatically.
+
+### Site settings
+
+Settings are read at build time. Add them as repository variables under **Settings → Secrets and variables → Actions → Variables**. All are optional.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `SITE_NAME` | `Knowledge Base` | Header and page titles |
+| `SITE_TAGLINE` | `Find an answer` | Home page heading |
+| `SITE_DESCRIPTION` | | Home page lede and meta description |
+| `SITE_FOOTER` | site name | Footer text |
+| `SITE_BANNER` | | Notice on every page (Markdown links allowed) |
+| `SITE_BANNER_TYPE` | `note` | `note`, `tip`, `important`, `warning`, `caution` |
+| `EDIT_URL` | | Prefix for "Suggest an edit" links, e.g. `https://github.com/ORG/REPO/edit/main/content/` |
+| `SITE_LOCALE` | `en-US` | Date format |
+
+After changing a variable, re-run the workflow (or push any commit) to rebuild.
+
+## Work locally
+
+Requires Node.js 22.12 or later.
 
 ```bash
 npm install
-npm run dev                 # http://localhost:3000, hot reload
-# or production mode
-npm run build && npm start
+npm run dev        # http://localhost:3000, updates as you edit articles
+npm run build      # writes the static site to ./out
+npm run preview    # serves ./out
 ```
 
-## Run with Docker Compose
-
-```bash
-cp .env.example .env        # optional: site name, public URL, etc.
-docker compose up -d --build
-```
-
-To edit articles without rebuilding the image, uncomment the `./content:/app/content:ro` volume in `docker-compose.yml`. The server checks for changes every two seconds.
-
-## Deploy to Docker Swarm
-
-Swarm ignores `build`, so build (and push, for multi-node clusters) first:
-
-```bash
-export KB_IMAGE=registry.example.com/knowledge-base:1.0.0
-docker compose build && docker push "$KB_IMAGE"
-docker stack deploy -c docker-compose.yml kb
-```
-
-The stack runs 2 replicas with start-first rolling updates and automatic rollback. For content on multiple nodes, either bake it into the image (default) or mount shared storage (NFS/CIFS) at `/app/content` on every node. Relative bind mounts don't work in Swarm.
-
-## Portainer
-
-Add a stack from this repository (or paste `docker-compose.yml`). On a standalone Docker endpoint Portainer builds the image; on a Swarm endpoint, point `KB_IMAGE` at an image in your registry.
+For local builds, settings can go in a `.env` file (see `.env.example`).
 
 ## Writing content
 
 ```
 content/
 ├── getting-started/
-│   ├── _category.md
+│   ├── _category.md       # optional: topic title, description, order
+│   ├── index.md           # optional: topic overview page
 │   └── welcome.md
 ├── deployment/
-│   └── docker-swarm.md
-└── _media/            # images, served at /media/<file>
+│   └── hosting/           # nested topics, any depth
+│       └── github-pages.md
+└── _media/                # images, referenced by file name
 ```
 
 ```markdown
@@ -73,59 +81,31 @@ order: 2
 Article body in Markdown...
 ```
 
-Folders can be nested to any depth, e.g. `deployment/docker/compose.md` → `/deployment/docker/compose`. Add an `index.md` to a folder to give that topic an overview page. If a folder and an article share a name at the same level (`docker/` and `docker.md`), the folder wins and a warning is logged.
+Folders and files starting with `_` or `.` are not treated as topics or articles. Topic folder names `search`, `tags` and `media` are reserved. If a folder and an article share a name at the same level, the folder wins and a warning is logged. The sample articles in `content/` document the full format.
 
-Folders and files starting with `_` or `.` are not treated as topics or articles. Topic folder names `api`, `search`, `tags`, `media`, `healthz` and `readyz` are reserved. The sample articles in `content/` document the full format.
+## How it works
 
-## Configuration
+`next build` renders every topic, article and tag page to HTML in `out/`, using `trailingSlash` so each page is a folder with an `index.html`. It also writes `search-index.json` with the text of every article. The browser downloads that file the first time someone searches and indexes it with MiniSearch, so search needs no server.
 
-All settings are environment variables read at request time, so changing them only needs a container restart, not a rebuild.
-
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `PORT` | `3000` | Listen port |
-| `HOSTNAME` | `0.0.0.0` (Docker) | Interface to bind |
-| `CONTENT_DIR` | `./content` (`/app/content` in Docker) | Articles folder |
-| `WATCH_CONTENT` | `true` | Pick up file changes automatically |
-| `WATCH_INTERVAL_MS` | `2000` | How often to check for changes |
-| `SITE_NAME` | `Knowledge Base` | Header and page titles |
-| `SITE_TAGLINE` | `Find an answer` | Home page heading |
-| `SITE_DESCRIPTION` | | Home page lede and meta description |
-| `SITE_FOOTER` | site name | Footer text |
-| `SITE_BANNER` | | Notice on every page (Markdown links allowed) |
-| `SITE_BANNER_TYPE` | `note` | `note`, `tip`, `important`, `warning`, `caution` |
-| `BASE_URL` | | Public URL for canonical links and sitemap |
-| `EDIT_URL` | | Prefix for "Suggest an edit" links (e.g. `https://github.com/org/repo/edit/main/content/`) |
-| `SITE_LOCALE` | `en-US` | Date format |
-
-## Endpoints
-
-| Path | Purpose |
-| --- | --- |
-| `/healthz` | Liveness (used by the image `HEALTHCHECK`) |
-| `/readyz` | Readiness; `503` if content can't be loaded |
-| `/api/search?q=…&limit=8` | JSON search |
-| `/sitemap.xml`, `/robots.txt` | SEO |
+On a project site, everything is served under `/YOUR-REPO/`. The workflow passes that path to the build as `BASE_PATH`, and every link, including links inside articles, gets the prefix.
 
 ## Project layout
 
 ```
-app/                        Routes (Next.js App Router)
-  layout.jsx                Shell: masthead, footer, fonts, metadata
-  page.jsx                  Home
-  [...path]/page.jsx        Every topic and article, at any depth
-  search/  tags/[tag]/      Search results, tag pages
-  api/search/route.js       JSON search API
-  healthz/ readyz/ media/   Health checks, media files
-  sitemap.js  robots.js     SEO
-components/                 React components: ArticleView, CategoryView, TopicTree (sidebar),
-                            Breadcrumbs, SearchBox and Masthead (client components)
-lib/content.js              Loads Markdown, builds topics, tags and search index; detects changes
-lib/markdown.js             Markdown rendering, link rewriting, sanitizing
-lib/config.js               Environment configuration
-content/                    Articles
+.github/workflows/pages.yml   Build and publish to GitHub Pages
+app/                          Routes (Next.js App Router)
+  layout.jsx                  Shell: masthead, banner, footer, fonts, metadata
+  page.jsx                    Home
+  [...path]/page.jsx          Every topic and article, at any depth
+  search/page.jsx             Search results (computed in the browser)
+  search-index.json/route.js  Search data, written at build time
+  tags/[tag]/page.jsx         Tag pages
+  sitemap.js  robots.js       SEO
+components/                   React components (SearchBox, SearchResults and Masthead run in the browser)
+lib/content.js                Loads Markdown, builds topics and tags, reads Git dates
+lib/markdown.js               Markdown rendering, callouts, link rewriting, sanitizing
+lib/search-core.js            Browser search
+lib/config.js                 Settings
+scripts/copy-media.mjs        Copies content/_media into the site
+content/                      Articles
 ```
-
-## How content updates work
-
-Pages call `getContent()`, which marks them as rendered per request. It keeps the parsed articles and search index in memory and, at most every `WATCH_INTERVAL_MS`, compares file sizes and modification times. If anything changed it rebuilds the index (typically a few milliseconds for hundreds of articles) and swaps it in. If a rebuild fails, the previous content keeps serving.

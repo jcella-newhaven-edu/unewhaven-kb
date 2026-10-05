@@ -1,11 +1,8 @@
-import { headers } from 'next/headers';
 import { getSite } from '@/lib/config';
 
-export default async function robots() {
-  let base = getSite().baseUrl;
-  if (!base) {
-    const h = await headers();
-    base = `${h.get('x-forwarded-proto') || 'http'}://${h.get('x-forwarded-host') || h.get('host')}`;
-  }
-  return { rules: { userAgent: '*', allow: '/' }, sitemap: `${base}/sitemap.xml` };
+export const dynamic = 'force-static';
+
+export default function robots() {
+  const base = getSite().baseUrl;
+  return { rules: { userAgent: '*', allow: '/' }, sitemap: base ? `${base}/sitemap.xml` : undefined };
 }

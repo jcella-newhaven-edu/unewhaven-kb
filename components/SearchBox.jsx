@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { basePath, loadSearch } from '@/lib/search-core';
 
 /**
- * Search form with live suggestions. It is a plain GET form, so it still
- * works before JavaScript loads; suggestions are a progressive enhancement.
+ * Search form with live suggestions. Suggestions are computed in the browser from
+ * search-index.json, which is downloaded the first time someone types.
  */
 export default function SearchBox({ variant = 'compact', defaultValue = '' }) {
   const id = useId();
@@ -21,7 +23,7 @@ export default function SearchBox({ variant = 'compact', defaultValue = '' }) {
 
   useEffect(() => setQuery(defaultValue), [defaultValue]);
 
-  // Debounced lookup; aborts stale requests so results never arrive out of order.
+  // Debounced lookup against the in-browser index.
   useEffect(() => {
     const q = query.trim();
     if (!typed.current) return;
@@ -30,22 +32,22 @@ export default function SearchBox({ variant = 'compact', defaultValue = '' }) {
       setOpen(false);
       return;
     }
-    const controller = new AbortController();
+    let cancelled = false;
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search?limit=6&q=${encodeURIComponent(q)}`, { signal: controller.signal });
-        if (!res.ok) throw new Error(res.statusText);
-        const data = await res.json();
-        setResults(data.results);
+        const search = await loadSearch();
+        if (cancelled) return;
+        const found = search(q, 6).map(({ doc }) => ({ title: doc.title, url: doc.url, category: doc.trail }));
+        setResults(found);
         setActive(-1);
-        setOpen(data.results.length > 0);
-      } catch (err) {
-        if (err.name !== 'AbortError') setOpen(false);
+        setOpen(found.length > 0);
+      } catch {
+        if (!cancelled) setOpen(false);
       }
-    }, 140);
+    }, 120);
     return () => {
+      cancelled = true;
       clearTimeout(timer);
-      controller.abort();
     };
   }, [query]);
 
@@ -70,12 +72,14 @@ export default function SearchBox({ variant = 'compact', defaultValue = '' }) {
       setOpen(false);
       router.push(results[active].url);
     } else if (e.key === 'Escape') {
+      // Close the suggestions first; the browser's own Escape would also clear the text.
+      e.preventDefault();
       setOpen(false);
     }
   }
 
   return (
-    <form ref={formRef} className={`search search--${variant}`} action="/search" method="get" role="search">
+    <form ref={formRef} className={`search search--${variant}`} action={`${basePath}/search/`} method="get" role="search">
       <label className="visually-hidden" htmlFor={id}>Search the knowledge base</label>
       <input
         id={id}
@@ -101,10 +105,10 @@ export default function SearchBox({ variant = 'compact', defaultValue = '' }) {
       <ul id={listId} className="suggestions" role="listbox" hidden={!open}>
         {results.map((r, i) => (
           <li key={r.url} id={`${listId}-${i}`} role="option" aria-selected={i === active}>
-            <a href={r.url} tabIndex={-1} onClick={() => setOpen(false)}>
+            <Link href={r.url} tabIndex={-1} onClick={() => setOpen(false)}>
               <span>{r.title}</span>
               <span className="suggestion-category">{r.category}</span>
-            </a>
+            </Link>
           </li>
         ))}
       </ul>
