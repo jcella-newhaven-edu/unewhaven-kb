@@ -1,26 +1,61 @@
 @import "tailwindcss";
+@import "@heroui/styles";
 
+/* dark: classes follow the "dark" class on <html> (set by the theme toggle).
+   Must come after the HeroUI import: HeroUI's own version also turns dark whenever the
+   computer is in dark mode, even when the visitor chose light with the toggle. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Colors from newhaven.edu's stylesheet (global.css :root), by the role the site gives them.
+   Use as bg-unh-primary, text-unh-tertiary, border-unh-secondary, hover:bg-unh-secondary-dark, etc.
+   Contrast (WCAG AA needs 4.5:1 for text):
+     gold, light blue  dark backgrounds only (1.5:1 and 3.0:1 on white)
+     blue (tertiary)   light backgrounds only (2.8:1 on navy, 3.4:1 on deep)
+     orange (hover)    white backgrounds only, 4.5:1 */
+@theme {
+  --color-unh-primary: #1c2b48;         /* navy: header menu, footer, hero, headings */
+  --color-unh-secondary: #ffcc33;       /* gold: borders, buttons, links on navy */
+  --color-unh-secondary-dark: #ffae00;
+  --color-unh-tertiary: #0c6dcf;        /* blue: body links, highlight buttons */
+  --color-unh-tertiary-dark: #005b80;
+  --color-unh-tertiary-light: #00a0d5;  /* light blue: links and dividers on navy */
+  --color-unh-hover: #d14900;           /* orange: link hover/focus on white only */
+  --color-unh-text: #333333;
+  --color-unh-light-gray: #f2f2f2;
+  --color-unh-border: #d4d4d4;
+  --color-unh-deep: #091b2d;            /* dark-mode page background (newhaven.edu has no dark mode) */
+}
+
+/* HeroUI's colors, pointed at the UNH palette so its components match the site.
+   These also give theme-aware classes that switch with dark mode on their own:
+   bg-background, text-foreground, text-link, outline-focus, border-border, bg-accent.
+   Hex values are repeated from the palette above because Tailwind only outputs
+   the --color-unh-* variables for classes that are actually used. */
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #333333;             /* unh-text */
+  --accent: #0c6dcf;                 /* unh-tertiary */
+  --accent-foreground: #ffffff;
+  --focus: #0c6dcf;                  /* unh-tertiary */
+  --link: #0c6dcf;                   /* unh-tertiary */
+  --border: #d4d4d4;                 /* unh-border */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+  --background: #091b2d;             /* unh-deep */
+  --foreground: oklch(92.9% 0.013 255.508); /* slate-200 */
+  --surface: #1c2b48;                /* unh-primary */
+  --accent: #ffcc33;                 /* unh-secondary */
+  --accent-foreground: #1c2b48;      /* unh-primary */
+  --focus: #ffcc33;                  /* unh-secondary */
+  --link: #00a0d5;                   /* unh-tertiary-light */
+  --border: oklch(37.2% 0.044 257.287); /* slate-700 */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* newhaven.edu uses Avenir, a licensed font that isn't on Google Fonts. It's built into
+   Macs and iPhones, so those visitors see it; everyone else gets their system font.
+   To show it everywhere, add the font files with next/font/local (needs UNH's license). */
+@theme {
+  --font-sans: "Avenir Next", Avenir, ui-sans-serif, system-ui, sans-serif;
+  --font-serif: Georgia, ui-serif, serif;
 }
