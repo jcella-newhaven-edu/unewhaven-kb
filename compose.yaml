@@ -35,8 +35,8 @@ services:
     ports:
       - "3080:3000"
 
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_DB}:5432/knowledge_base_dev
+    environment:    
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@unewhaven-kb-db:5432/{POSTGRES_DB}
 
     env_file:
       - path: .env
