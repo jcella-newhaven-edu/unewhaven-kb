@@ -70,10 +70,6 @@ docker compose --env-file .env.prod -p unewhaven-kb-prod up -d --build
 
 The app uses host port `APP_PORT`, which defaults to 3080. If you set the project name with `COMPOSE_PROJECT_NAME` instead of `-p`, use that same name in the database hostname in `DATABASE_URL`.
 
-When replacing an existing PostgreSQL 17 stack, run the matching `up -d --build` command with `--force-recreate` so the app prerenders against the new database. Keep the original Compose project name to replace the existing stack. PostgreSQL 19 initializes its own volume from the schema and selected seed file. Keep the previous `<project>_postgres-data` volume for the PostgreSQL 17 cluster.
-
-If the deployment still uses the old `postgres` service name, first run `docker compose rm --stop --force postgres` with the old configuration and its original project name. Update `DATABASE_URL` to use the `<project>-db` hostname before starting the updated configuration.
-
 To build a standalone production image, export `DATABASE_URL` for an initialized database reachable during the build and at runtime.
 
 ```bash
