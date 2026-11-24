@@ -1,6 +1,6 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
-import { getDb } from "@/lib/mongodb";
+import { queryRows } from "@/lib/postgres";
 import { getRecentArticles, type Article } from "@/lib/data/articles";
 import { getAllTopics } from "@/lib/data/topics";
 
@@ -13,7 +13,7 @@ export type SearchResult = {
 };
 
 const MAX_QUERY_LENGTH = 100;
-const fields = { _id: 0, slug: 1, title: 1, summary: 1, topicSlug: 1 } as const;
+const fields = 'slug, title, summary, topic_slug AS "topicSlug"';
 
 type Hit = Pick<Article, "slug" | "title" | "summary" | "topicSlug">;
 
@@ -21,41 +21,38 @@ const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
  * Published articles matching a search, best first. Two searches are combined:
- *  1. The article_search text index: whole words anywhere in the title, summary or body,
- *     ranked with title matches highest (weights are set on the index).
+ *  1. Full-text search across the title, summary and body, with title matches weighted highest.
  *  2. Word prefixes in the title or summary, so half-typed words match while typing:
  *     "reset pass" finds "Reset your password".
- * Typos don't match; that needs Atlas Search, which this database doesn't have.
  */
 export async function searchArticles(rawQuery: string, limit = 8): Promise<SearchResult[]> {
   "use cache";
   cacheLife("hours");
   cacheTag("articles", "topics");
 
-  const query = rawQuery.trim().slice(0, MAX_QUERY_LENGTH);
+  const query = rawQuery.replaceAll("\0", " ").trim().slice(0, MAX_QUERY_LENGTH);
   if (!query) return [];
 
-  const articles = getDb().collection<Article>("articles");
-  const words = query.split(/\s+/).map(escapeRegex);
-  // Every typed word must start a word in the title or summary.
-  const prefixFilter = {
-    published: true,
-    $and: words.map((w) => {
-      const startsWord = new RegExp(`(^|[^\\p{L}\\p{N}])${w}`, "iu");
-      return { $or: [{ title: startsWord }, { summary: startsWord }] };
-    }),
-  };
+  const words = query.split(/\s+/);
+  // Match any ordinary term, while keeping quoted phrases and exclusions intact.
+  const textQuery = /"|(^|\s)-/.test(query) ? query : words.join(" OR ");
+  const prefixes = words.map((word) => `(^|[^[:alnum:]])${escapeRegex(word)}`);
 
   const [textHits, prefixHits, topics] = await Promise.all([
-    articles
-      .find<Hit>(
-        { $text: { $search: query }, published: true },
-        { projection: { ...fields, score: { $meta: "textScore" } } },
-      )
-      .sort({ score: { $meta: "textScore" } })
-      .limit(limit)
-      .toArray(),
-    articles.find<Hit>(prefixFilter, { projection: fields }).sort({ title: 1 }).limit(limit).toArray(),
+    queryRows<Hit>(
+      `WITH search_terms AS (SELECT websearch_to_tsquery('english', $1) AS terms)
+       SELECT ${fields} FROM articles CROSS JOIN search_terms
+       WHERE published AND search_document @@ terms
+       ORDER BY ts_rank(search_document, terms) DESC, title, slug LIMIT $2`,
+      [textQuery, limit],
+    ),
+    queryRows<Hit>(
+      `SELECT ${fields} FROM articles WHERE published AND NOT EXISTS (
+         SELECT 1 FROM unnest($1::text[]) AS prefixes(pattern)
+         WHERE title !~* pattern AND summary !~* pattern
+       ) ORDER BY title, slug LIMIT $2`,
+      [prefixes, limit],
+    ),
     getAllTopics(),
   ]);
 

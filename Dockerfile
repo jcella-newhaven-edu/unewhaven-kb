@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 # Base image
 FROM node:24-bookworm-slim AS base
 
@@ -8,17 +10,27 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# Build the application
-FROM base AS builder
+# Prepare the application source and dependencies
+FROM base AS source
 WORKDIR /app
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY --from=deps --chown=node:node /app/node_modules ./node_modules
+COPY --chown=node:node . .
 
+RUN chown node:node /app
 ENV NEXT_TELEMETRY_DISABLED=1
+USER node
 
-RUN mkdir -p public
-RUN npm run build
+# Local Compose builds after its PostgreSQL service has initialized.
+FROM source AS compose
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+EXPOSE 3000
+CMD ["sh", "-c", "npm run build && cp -a public .next/standalone/ && cp -a .next/static .next/standalone/.next/ && exec node .next/standalone/server.js"]
+
+# Production builds connect to a prepared PostgreSQL instance.
+FROM source AS builder
+RUN --mount=type=secret,id=database_url,env=DATABASE_URL,required=true npm run build
 
 # Production image
 FROM base AS runner

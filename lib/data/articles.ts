@@ -1,9 +1,8 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
-import { getDb } from "@/lib/mongodb";
+import { queryRows } from "@/lib/postgres";
 import type { JSONContent } from "@tiptap/core";
 
-// articles collection
 export type Article = {
   slug: string;
   title: string;
@@ -18,18 +17,21 @@ export type Article = {
 // What lists need: everything except the body.
 export type ArticleSummary = Omit<Article, "body" | "bodyText" | "published">;
 
-// ObjectId can't be cached or passed to client components, so _id is always left out.
-const summaryFields = { _id: 0, slug: 1, title: 1, summary: 1, topicSlug: 1, updated: 1 };
-
-const articles = () => getDb().collection<Article>("articles");
+const summaryFields = 'slug, title, summary, topic_slug AS "topicSlug", updated';
 
 /** One published article, or null if it doesn't exist. */
 export async function getArticle(slug: string) {
   "use cache";
   cacheLife("days");
+  if (slug.includes("\0")) return null;
   cacheTag("articles", `article:${slug}`);
 
-  return articles().findOne<Article>({ slug, published: true }, { projection: { _id: 0 } });
+  const [article] = await queryRows<Article>(
+    `SELECT ${summaryFields}, body, body_text AS "bodyText", published
+     FROM articles WHERE slug = $1 AND published`,
+    [slug],
+  );
+  return article ?? null;
 }
 
 /** Published articles in a topic, A to Z. */
@@ -38,10 +40,11 @@ export async function getArticlesByTopic(topicSlug: string) {
   cacheLife("days");
   cacheTag("articles", `topic:${topicSlug}`);
 
-  return articles()
-    .find<ArticleSummary>({ topicSlug, published: true }, { projection: summaryFields })
-    .sort({ title: 1 })
-    .toArray();
+  return queryRows<ArticleSummary>(
+    `SELECT ${summaryFields} FROM articles
+     WHERE topic_slug = $1 AND published ORDER BY title, slug`,
+    [topicSlug],
+  );
 }
 
 /** Published articles in any of several topics (e.g. a topic and its subtopics), A to Z. */
@@ -50,10 +53,11 @@ export async function getArticlesByTopics(topicSlugs: string[]) {
   cacheLife("days");
   cacheTag("articles", ...topicSlugs.map((s) => `topic:${s}`));
 
-  return articles()
-    .find<ArticleSummary>({ topicSlug: { $in: topicSlugs }, published: true }, { projection: summaryFields })
-    .sort({ title: 1 })
-    .toArray();
+  return queryRows<ArticleSummary>(
+    `SELECT ${summaryFields} FROM articles
+     WHERE topic_slug = ANY($1::text[]) AND published ORDER BY title, slug`,
+    [topicSlugs],
+  );
 }
 
 /** Every published article, A to Z. */
@@ -62,10 +66,9 @@ export async function getAllArticles() {
   cacheLife("days");
   cacheTag("articles");
 
-  return articles()
-    .find<ArticleSummary>({ published: true }, { projection: summaryFields })
-    .sort({ title: 1 })
-    .toArray();
+  return queryRows<ArticleSummary>(
+    `SELECT ${summaryFields} FROM articles WHERE published ORDER BY title, slug`,
+  );
 }
 
 /** The most recently updated published articles. */
@@ -74,11 +77,10 @@ export async function getRecentArticles(limit = 5) {
   cacheLife("days");
   cacheTag("articles");
 
-  return articles()
-    .find<ArticleSummary>({ published: true }, { projection: summaryFields })
-    .sort({ updated: -1 })
-    .limit(limit)
-    .toArray();
+  return queryRows<ArticleSummary>(
+    `SELECT ${summaryFields} FROM articles WHERE published ORDER BY updated DESC, slug LIMIT $1`,
+    [limit],
+  );
 }
 
 /** Slugs of every published article, for generateStaticParams. */
@@ -87,9 +89,7 @@ export async function getArticleSlugs() {
   cacheLife("days");
   cacheTag("articles");
 
-  return articles()
-    .find<{ slug: string }>({ published: true }, { projection: { _id: 0, slug: 1 } })
-    .toArray();
+  return queryRows<{ slug: string }>("SELECT slug FROM articles WHERE published ORDER BY slug");
 }
 
 export function readingMinutes(text:string, wordsPerMinute = 200) {

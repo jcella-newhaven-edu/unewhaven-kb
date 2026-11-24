@@ -1,20 +1,38 @@
 services:
+  postgres:
+    image: postgres:17-bookworm@sha256:837bed18782820fe967067cb5328b02b0d9992c1be9a37ee0c9c492cfc03af3b
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: knowledge_base_dev
+      POSTGRES_USER: kb_dev
+      POSTGRES_PASSWORD: kb_dev
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/dev-seed.sql:/docker-entrypoint-initdb.d/02-dev-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
   nextjs:
     container_name: unewhaven-kb
-    image: unewhaven-kb:latest
+    image: unewhaven-kb:compose
     build:
       context: .
       dockerfile: Dockerfile
+      target: compose
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
 
     ports:
       - "3080:3000"
 
     environment:
-      NODE_ENV: production
-      NEXT_TELEMETRY_DISABLED: "1"
-      PORT: "3000"
-      HOSTNAME: "0.0.0.0"
+      DATABASE_URL: postgresql://kb_dev:kb_dev@postgres:5432/knowledge_base_dev
 
     env_file:
       - path: .env
@@ -25,14 +43,11 @@ services:
         - CMD
         - node
         - -e
-        - "fetch('http://127.0.0.1:3000').then(r => process.exit(r.status < 500 ? 0 : 1)).catch(() => process.exit(1))"
+        - "fetch('http://127.0.0.1:3000/api/search?q=password').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
-
-    volumes:
-      - nextjs-cache:/app/.next/cache
+      start_period: 60s
 
 volumes:
-  nextjs-cache:
+  postgres-data:

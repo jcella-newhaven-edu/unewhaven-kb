@@ -1,8 +1,8 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
-import { getDb } from "@/lib/mongodb";
+import { queryRows } from "@/lib/postgres";
 
-// topics collection. A subtopic is a topic whose parentSlug names its parent topic.
+// A subtopic is a topic whose parentSlug names its parent topic.
 // Only two levels: a subtopic can't have subtopics of its own.
 export type Topic = {
   slug: string;
@@ -17,20 +17,17 @@ export type TopicWithCount = Topic & { articleCount: number };
 /** A top-level topic with its subtopics. articleCount includes the subtopics' articles. */
 export type TopicTree = TopicWithCount & { subtopics: TopicWithCount[] };
 
-const topics = () => getDb().collection<Topic>("topics");
-
-// Top-level topics may store parentSlug as null, "" (what Compass saves for an emptied field)
-// or not at all. Normalize all three to null.
-const withParent = (t: Topic): Topic => ({ ...t, parentSlug: t.parentSlug || null });
+const topicFields = `slug, title, description, sort_order AS "order", NULLIF(parent_slug, '') AS "parentSlug"`;
 
 /** One topic or subtopic, or null if it doesn't exist. */
 export async function getTopic(slug: string) {
   "use cache";
   cacheLife("days");
+  if (slug.includes("\0")) return null;
   cacheTag("topics", `topic:${slug}`);
 
-  const topic = await topics().findOne<Topic>({ slug }, { projection: { _id: 0 } });
-  return topic ? withParent(topic) : null;
+  const [topic] = await queryRows<Topic>(`SELECT ${topicFields} FROM topics WHERE slug = $1`, [slug]);
+  return topic ?? null;
 }
 
 /** Every topic and subtopic in one flat list, in display order. */
@@ -39,29 +36,25 @@ export async function getAllTopics() {
   cacheLife("days");
   cacheTag("topics");
 
-  const list = await topics().find<Topic>({}, { projection: { _id: 0 } }).sort({ order: 1, title: 1 }).toArray();
-  return list.map(withParent);
+  return queryRows<Topic>(`SELECT ${topicFields} FROM topics ORDER BY sort_order, title, slug`);
 }
 
 /** Top-level topics in display order, each with its subtopics and published-article counts. */
 export async function getTopics(): Promise<TopicTree[]> {
   "use cache";
   cacheLife("days");
-  // The counts come from the articles collection, so article changes refresh this too.
+  // Article changes refresh the counts too.
   cacheTag("topics", "articles");
 
   const [all, counts] = await Promise.all([
     getAllTopics(),
-    getDb()
-      .collection("articles")
-      .aggregate<{ _id: string; n: number }>([
-        { $match: { published: true } },
-        { $group: { _id: "$topicSlug", n: { $sum: 1 } } },
-      ])
-      .toArray(),
+    queryRows<{ topicSlug: string; articleCount: number }>(
+      `SELECT topic_slug AS "topicSlug", count(*)::integer AS "articleCount"
+       FROM articles WHERE published GROUP BY topic_slug`,
+    ),
   ]);
 
-  const countBySlug = new Map(counts.map((c) => [c._id, c.n]));
+  const countBySlug = new Map(counts.map(({ topicSlug, articleCount }) => [topicSlug, articleCount]));
   const withCount = (t: Topic): TopicWithCount => ({ ...t, articleCount: countBySlug.get(t.slug) ?? 0 });
 
   return all
@@ -79,11 +72,10 @@ export async function getSubtopics(parentSlug: string) {
   cacheLife("days");
   cacheTag("topics", `topic:${parentSlug}`);
 
-  const list = await topics()
-    .find<Topic>({ parentSlug }, { projection: { _id: 0 } })
-    .sort({ order: 1, title: 1 })
-    .toArray();
-  return list.map(withParent);
+  return queryRows<Topic>(
+    `SELECT ${topicFields} FROM topics WHERE parent_slug = $1 ORDER BY sort_order, title, slug`,
+    [parentSlug],
+  );
 }
 
 /**
