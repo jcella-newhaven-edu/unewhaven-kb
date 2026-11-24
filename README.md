@@ -2,7 +2,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-Use Node.js 24 and PostgreSQL 17. Create a local PostgreSQL database, then apply the schema and load the sample content before starting the development server.
+Use Node.js 24 and PostgreSQL 19. Create a local PostgreSQL database, then apply the schema and load the sample content before starting the development server.
 
 ```bash
 npm ci
@@ -34,7 +34,7 @@ Both Compose services join the external `proxy` network. If it does not already 
 docker network create proxy
 ```
 
-Give each stack a distinct Compose project name. The database hostname on `proxy` is `<project>-db` and the app hostname is `<project>-app`. A reverse proxy on that network can reach the app at `<project>-app:3000`. Each project has its own PostgreSQL volume.
+Give each stack a distinct Compose project name. The database hostname on `proxy` is `<project>-db` and the app hostname is `<project>-app`. A reverse proxy on that network can reach the app at `<project>-app:3000`. Each project uses its own `<project>_postgres-19-data` volume, mounted at `/var/lib/postgresql`.
 
 Create `.env.dev` for development and `.env.prod` for production. Replace the password placeholders with distinct passwords. Set the raw password in `POSTGRES_PASSWORD` and percent-encode any reserved URL characters in the password portion of `DATABASE_URL`. Keep both files out of version control.
 
@@ -70,7 +70,9 @@ docker compose --env-file .env.prod -p unewhaven-kb-prod up -d --build
 
 The app uses host port `APP_PORT`, which defaults to 3080. If you set the project name with `COMPOSE_PROJECT_NAME` instead of `-p`, use that same name in the database hostname in `DATABASE_URL`.
 
-If upgrading a deployment that used the old `postgres` service name, run `docker compose rm --stop --force postgres` with the old configuration and its original project name. Deploy the updated configuration with the same project name so it can reuse the existing `postgres-data` volume. Keep the database, username, and password that the existing volume was initialized with, and update `DATABASE_URL` to use the project's new database hostname.
+When replacing an existing PostgreSQL 17 stack, run the matching `up -d --build` command with `--force-recreate` so the app prerenders against the new database. Keep the original Compose project name to replace the existing stack. PostgreSQL 19 initializes its own volume from the schema and selected seed file. Keep the previous `<project>_postgres-data` volume for the PostgreSQL 17 cluster.
+
+If the deployment still uses the old `postgres` service name, first run `docker compose rm --stop --force postgres` with the old configuration and its original project name. Update `DATABASE_URL` to use the `<project>-db` hostname before starting the updated configuration.
 
 To build a standalone production image, export `DATABASE_URL` for an initialized database reachable during the build and at runtime.
 
