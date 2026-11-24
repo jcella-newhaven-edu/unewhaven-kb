@@ -1,7 +1,6 @@
 services:
-  postgres:
-    image: postgres:18
-    container_name: unewhaven_kb_postgres
+  unewhaven-kb-db:
+    image: postgres:17-bookworm@sha256:837bed18782820fe967067cb5328b02b0d9992c1be9a37ee0c9c492cfc03af3b
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -14,7 +13,7 @@ services:
     networks:
       - proxy
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      test: ["CMD-SHELL", "PGPASSWORD=\"$$POSTGRES_PASSWORD\" psql -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\" -w -c 'SELECT 1'"]
       interval: 2s
       timeout: 5s
       retries: 30
@@ -27,17 +26,17 @@ services:
       dockerfile: Dockerfile
       target: compose
     restart: unless-stopped
+    depends_on:
+      unewhaven-kb-db:
+        condition: service_healthy
     networks:
       - proxy
-    depends_on:
-      postgres:
-        condition: service_healthy
 
     ports:
       - "3080:3000"
 
     environment:
-      DATABASE_URL: postgresql://kb_dev:kb_dev@postgres:5432/knowledge_base_dev
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRESS_DB}:5432/knowledge_base_dev
 
     env_file:
       - path: .env
