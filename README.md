@@ -28,7 +28,49 @@ When transferring existing MongoDB content, use each document's `slug` as the pr
 
 ## Docker
 
-Run `docker compose up --build` for a local preview on port 3080. Compose initializes a PostgreSQL volume with the schema and sample data, then builds and starts the app. The initialization files run when the PostgreSQL volume is first created.
+Both Compose services join the external `proxy` network. If it does not already exist, create it once.
+
+```bash
+docker network create proxy
+```
+
+Give each stack a distinct Compose project name. The database hostname on `proxy` is `<project>-db` and the app hostname is `<project>-app`. A reverse proxy on that network can reach the app at `<project>-app:3000`. Each project has its own PostgreSQL volume.
+
+Create `.env.dev` for development and `.env.prod` for production. Replace the password placeholders with distinct passwords. Set the raw password in `POSTGRES_PASSWORD` and percent-encode any reserved URL characters in the password portion of `DATABASE_URL`. Keep both files out of version control.
+
+`.env.dev`
+
+```dotenv
+POSTGRES_DB=knowledge_base_dev
+POSTGRES_USER=kb_dev
+POSTGRES_PASSWORD='replace-with-dev-password'
+DATABASE_URL='postgresql://kb_dev:replace-with-dev-password@unewhaven-kb-dev-db:5432/knowledge_base_dev'
+APP_PORT=3080
+```
+
+`.env.prod`
+
+```dotenv
+POSTGRES_DB=knowledge_base_prod
+POSTGRES_USER=kb_prod
+POSTGRES_PASSWORD='replace-with-prod-password'
+DATABASE_URL='postgresql://kb_prod:replace-with-prod-password@unewhaven-kb-prod-db:5432/knowledge_base_prod'
+APP_PORT=3081
+POSTGRES_SEED_FILE=./db/prod-seed.sql
+```
+
+For production, provide a SQL file at `POSTGRES_SEED_FILE` that loads your content, including at least one topic and one published article for prerendering. Compose applies `db/schema.sql` and the seed when it initializes a new database volume. The default seed is `./db/dev-seed.sql`.
+
+Start each stack with its matching environment file and project name. Run these commands from a shell without exported database or port settings, since Compose gives shell variables precedence over the environment file.
+
+```bash
+docker compose --env-file .env.dev -p unewhaven-kb-dev up -d --build
+docker compose --env-file .env.prod -p unewhaven-kb-prod up -d --build
+```
+
+The app uses host port `APP_PORT`, which defaults to 3080. If you set the project name with `COMPOSE_PROJECT_NAME` instead of `-p`, use that same name in the database hostname in `DATABASE_URL`.
+
+If upgrading a deployment that used the old `postgres` service name, run `docker compose rm --stop --force postgres` with the old configuration and its original project name. Deploy the updated configuration with the same project name so it can reuse the existing `postgres-data` volume. Keep the database, username, and password that the existing volume was initialized with, and update `DATABASE_URL` to use the project's new database hostname.
 
 To build a standalone production image, export `DATABASE_URL` for an initialized database reachable during the build and at runtime.
 
