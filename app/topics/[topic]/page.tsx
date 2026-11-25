@@ -11,7 +11,7 @@ import styles from "../../browse.module.css";
 // Prerender every topic and subtopic at build time. New ones are rendered on first visit.
 export async function generateStaticParams() {
   const topics = await getAllTopics();
-  return topics.map((t) => ({ topic: t.slug }));
+  return topics.length > 0 ? topics.map(({ slug }) => ({ topic: slug })) : [{ topic: "__no-topics__" }];
 }
 
 export async function generateMetadata({ params }: PageProps<"/topics/[topic]">): Promise<Metadata> {
