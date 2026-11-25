@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ArrowUpRightIcon } from "@heroicons/react/20/solid";
 import { IT_SUPPORT_URL } from "@/lib/site-links";
 
@@ -10,12 +11,17 @@ export default function Footer() {
           <span aria-hidden="true" className="px-2">/</span>
           Information Technology
         </p>
-        <a
-          href={IT_SUPPORT_URL}
-          className="inline-flex items-center gap-1 rounded-sm font-semibold text-kb-heading underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus"
-        >
-          IT support <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />
-        </a>
+        <nav aria-label="Footer navigation" className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <a
+            href={IT_SUPPORT_URL}
+            className="inline-flex items-center gap-1 rounded-sm font-semibold text-kb-heading underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus"
+          >
+            IT support <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />
+          </a>
+          <Link href="/admin" prefetch={false} className="rounded-sm text-kb-muted underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus">
+            Administration
+          </Link>
+        </nav>
       </div>
     </footer>
   );

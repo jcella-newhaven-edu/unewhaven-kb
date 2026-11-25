@@ -10,7 +10,9 @@ import styles from "./article.module.css";
 
 // Prerender every published article at build time. New ones are rendered on first visit.
 export async function generateStaticParams() {
-  return getArticleSlugs();
+  const slugs = await getArticleSlugs();
+  // Cache Components requires a param even when all articles are drafts or deleted.
+  return slugs.length > 0 ? slugs : [{ slug: "__no-published-articles__" }];
 }
 
 export async function generateMetadata({ params }: PageProps<"/articles/[slug]">): Promise<Metadata> {

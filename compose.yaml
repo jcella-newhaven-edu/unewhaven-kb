@@ -37,6 +37,10 @@ services:
 
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL for this stack}
+      ADMIN_ORIGIN: ${ADMIN_ORIGIN:-}
+      ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-}
+      ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID:-}
+      ENTRA_CLIENT_SECRET: ${ENTRA_CLIENT_SECRET:-}
     networks:
       proxy:
         aliases:
