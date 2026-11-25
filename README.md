@@ -2,23 +2,84 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+Use Node.js 24 and PostgreSQL 19. Create a local PostgreSQL database, then apply the schema and load the sample content before starting the development server.
 
 ```bash
+npm ci
+export DATABASE_URL='postgresql://<user>:<password>@localhost:5432/<database>'
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/schema.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/dev-seed.sql
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
+
+Next.js also reads `DATABASE_URL` from `.env.local`. Use your actual connection string and keep it out of version control.
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Database and builds
+
+`npm run build` reads PostgreSQL to prerender pages. Apply `db/schema.sql` and load at least one topic and one published article before building. Use the same database at runtime to keep prerendered content and search results consistent.
+
+When transferring existing MongoDB content, use each document's `slug` as the primary key and omit `_id`. Map topic `order` and `parentSlug` to `sort_order` and `parent_slug`, using `NULL` for top-level topics. Map article `topicSlug` and `bodyText` to `topic_slug` and `body_text`. Store the TipTap body as JSON and preserve the `updated` timestamp. PostgreSQL generates the search index data from the article fields.
+
+## Docker
+
+Both Compose services join the external `proxy` network. If it does not already exist, create it once.
+
+```bash
+docker network create proxy
+```
+
+Give each stack a distinct Compose project name. The database hostname on `proxy` is `<project>-db` and the app hostname is `<project>-app`. A reverse proxy on that network can reach the app at `<project>-app:3000`. Each project uses its own `<project>_postgres-19-data` volume, mounted at `/var/lib/postgresql`.
+
+Create `.env.dev` for development and `.env.prod` for production. Replace the password placeholders with distinct passwords. Set the raw password in `POSTGRES_PASSWORD` and percent-encode any reserved URL characters in the password portion of `DATABASE_URL`. Keep both files out of version control.
+
+`.env.dev`
+
+```dotenv
+POSTGRES_DB=knowledge_base_dev
+POSTGRES_USER=kb_dev
+POSTGRES_PASSWORD='replace-with-dev-password'
+DATABASE_URL='postgresql://kb_dev:replace-with-dev-password@unewhaven-kb-dev-db:5432/knowledge_base_dev'
+APP_PORT=3080
+```
+
+`.env.prod`
+
+```dotenv
+POSTGRES_DB=knowledge_base_prod
+POSTGRES_USER=kb_prod
+POSTGRES_PASSWORD='replace-with-prod-password'
+DATABASE_URL='postgresql://kb_prod:replace-with-prod-password@unewhaven-kb-prod-db:5432/knowledge_base_prod'
+APP_PORT=3081
+POSTGRES_SEED_FILE=./db/prod-seed.sql
+```
+
+For production, set `POSTGRES_SEED_FILE` to a SQL file that loads at least one topic and one published article for prerendering. Use a path relative to the repository root and include the file in the Docker build context. For Git-based deployments, include the file in the branch that the deployment checks out. The default seed is `./db/dev-seed.sql`.
+
+Compose builds the PostgreSQL image from `db/Dockerfile` with `db/schema.sql` and the selected seed inside it. PostgreSQL runs both SQL files once, when it initializes a fresh database volume. Rerun the matching `up -d --build` command below to package schema or seed changes for future fresh volumes.
+
+Start each stack with its matching environment file and project name. Run these commands from a shell without exported database or port settings, since Compose gives shell variables precedence over the environment file.
+
+```bash
+docker compose --env-file .env.dev -p unewhaven-kb-dev up -d --build
+docker compose --env-file .env.prod -p unewhaven-kb-prod up -d --build
+```
+
+The app uses host port `APP_PORT`, which defaults to 3080. If you set the project name with `COMPOSE_PROJECT_NAME` instead of `-p`, use that same name in the database hostname in `DATABASE_URL`.
+
+To build a standalone production image, export `DATABASE_URL` for an initialized database reachable during the build and at runtime.
+
+```bash
+docker build --secret id=database_url,env=DATABASE_URL -t unewhaven-kb .
+docker run --rm -p 3080:3000 --env DATABASE_URL unewhaven-kb
+```
+
+Add `--no-cache-filter builder` to the build command when the database content has changed and you need fresh prerendered pages.
 
 ## Learn More
 

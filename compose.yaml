@@ -1,38 +1,62 @@
 services:
+  unewhaven-kb-db:
+    build:
+      context: .
+      dockerfile: db/Dockerfile
+      args:
+        POSTGRES_SEED_FILE: ${POSTGRES_SEED_FILE:-./db/dev-seed.sql}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB for this stack}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER for this stack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD for this stack}
+    volumes:
+      - postgres-19-data:/var/lib/postgresql
+    networks:
+      proxy:
+        aliases:
+          - ${COMPOSE_PROJECT_NAME}-db
+    healthcheck:
+      test: ["CMD-SHELL", "PGPASSWORD=\"$$POSTGRES_PASSWORD\" psql -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\" -w -c 'SELECT 1'"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
   nextjs:
-    container_name: unewhaven-kb
-    image: unewhaven-kb:latest
     build:
       context: .
       dockerfile: Dockerfile
+      target: compose
     restart: unless-stopped
+    depends_on:
+      unewhaven-kb-db:
+        condition: service_healthy
 
     ports:
-      - "3080:3000"
+      - "${APP_PORT:-3080}:3000"
 
     environment:
-      NODE_ENV: production
-      NEXT_TELEMETRY_DISABLED: "1"
-      PORT: "3000"
-      HOSTNAME: "0.0.0.0"
-
-    env_file:
-      - path: .env
-        required: false
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL for this stack}
+    networks:
+      proxy:
+        aliases:
+          - ${COMPOSE_PROJECT_NAME}-app
 
     healthcheck:
       test:
         - CMD
         - node
         - -e
-        - "fetch('http://127.0.0.1:3000').then(r => process.exit(r.status < 500 ? 0 : 1)).catch(() => process.exit(1))"
+        - "fetch('http://127.0.0.1:3000/api/search?q=password').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
-
-    volumes:
-      - nextjs-cache:/app/.next/cache
+      start_period: 60s
 
 volumes:
-  nextjs-cache:
+  postgres-19-data:
+
+networks:
+  proxy:
+    name: proxy
+    external: true
