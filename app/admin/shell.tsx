@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { Suspense } from "react";
+import Link from "next/link";
 import { connection } from "next/server";
 import { Button } from "@heroui/react";
+import { buttonVariants } from "@heroui/styles";
 import { getAdminSession, isAdminAuthConfigured } from "@/lib/admin/auth";
 import styles from "./admin.module.css";
 
@@ -41,9 +43,9 @@ export async function AdminGate({
     ? "This account does not have access to manage the knowledge base."
     : error === "sign-in"
       ? "Microsoft sign-in could not be completed. Try signing in again."
-      : "Sign in with your university account to manage articles.";
+      : "Sign in with your university account to manage articles and topics.";
 
-  return <AdminSignIn title="Article administration" message={message} canSignIn />;
+  return <AdminSignIn title="Knowledge base administration" message={message} canSignIn />;
 }
 
 function AdminSignIn({
@@ -68,26 +70,48 @@ export function AdminHeader({
   title,
   session,
   children,
+  section = "articles",
 }: {
   title: string;
   session: AdminSession;
   children?: ReactNode;
+  section?: "articles" | "topics";
 }) {
   return (
-    <header className={styles.header}>
-      <div className={styles.headerTitle}>
-        <h1 className={styles.heading}>{title}</h1>
-        {children}
-      </div>
-      <div className={styles.session}>
-        <div className={styles.account}>
-          <span>{session.displayName}</span>
-          <span>{session.role === "admin" ? "Administrator" : "Editor"}</span>
+    <>
+      <header className={styles.header}>
+        <div className={styles.headerTitle}>
+          <h1 className={styles.heading}>{title}</h1>
+          {children}
         </div>
-        <form action="/api/admin/auth/logout" method="post">
-          <Button type="submit" variant="secondary" size="sm">Sign out</Button>
-        </form>
-      </div>
-    </header>
+        <div className={styles.session}>
+          <div className={styles.account}>
+            <span>{session.displayName}</span>
+            <span>{session.role === "admin" ? "Administrator" : "Editor"}</span>
+          </div>
+          <form action="/api/admin/auth/logout" method="post">
+            <Button type="submit" variant="secondary" size="sm">Sign out</Button>
+          </form>
+        </div>
+      </header>
+      <nav aria-label="Administration" className={styles.navigation}>
+        <Link
+          href="/admin"
+          prefetch={false}
+          aria-current={section === "articles" ? "true" : undefined}
+          className={buttonVariants({ variant: section === "articles" ? "secondary" : "ghost", size: "sm" })}
+        >
+          Articles
+        </Link>
+        <Link
+          href="/admin/topics"
+          prefetch={false}
+          aria-current={section === "topics" ? "true" : undefined}
+          className={buttonVariants({ variant: section === "topics" ? "secondary" : "ghost", size: "sm" })}
+        >
+          Topics
+        </Link>
+      </nav>
+    </>
   );
 }

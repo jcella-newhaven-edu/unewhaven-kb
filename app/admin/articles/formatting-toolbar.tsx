@@ -1,13 +1,43 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Button, Input } from "@heroui/react";
+import { useEffect, useId, useRef, useState } from "react";
+import {
+  ArrowUturnLeftIcon,
+  ArrowUturnRightIcon,
+  BoldIcon,
+  ChatBubbleBottomCenterTextIcon,
+  ChevronDownIcon,
+  CodeBracketIcon,
+  ItalicIcon,
+  LinkIcon,
+  ListBulletIcon,
+  NumberedListIcon,
+  StrikethroughIcon,
+  UnderlineIcon,
+} from "@heroicons/react/24/outline";
+import { Button, Dropdown, Input, ToggleButton, Toolbar, Tooltip } from "@heroui/react";
 import { useEditorState, type Editor } from "@tiptap/react";
+import { validHref } from "@/lib/admin/validation";
 import styles from "../admin.module.css";
+import editorStyles from "./editor.module.css";
+
+const textStyles = [
+  { id: "paragraph", label: "Paragraph" },
+  { id: "heading-2", label: "Heading 2" },
+  { id: "heading-3", label: "Heading 3" },
+] as const;
+
+type FormatCommand = {
+  label: string;
+  icon: typeof BoldIcon;
+  pressed: boolean;
+  run: () => boolean;
+};
 
 export default function FormattingToolbar({ editor }: { editor: Editor }) {
   const [link, setLink] = useState<string | null>(null);
   const [linkError, setLinkError] = useState(false);
+  const linkId = useId();
   const linkInput = useRef<HTMLInputElement>(null);
   const linkOpen = link !== null;
 
@@ -18,7 +48,6 @@ export default function FormattingToolbar({ editor }: { editor: Editor }) {
   const active = useEditorState({
     editor,
     selector: ({ editor }) => ({
-      paragraph: editor.isActive("paragraph"),
       heading2: editor.isActive("heading", { level: 2 }),
       heading3: editor.isActive("heading", { level: 3 }),
       bold: editor.isActive("bold"),
@@ -35,19 +64,35 @@ export default function FormattingToolbar({ editor }: { editor: Editor }) {
     }),
   });
 
-  const commands = [
-    { label: "Paragraph", pressed: active.paragraph, run: () => editor.chain().focus().setParagraph().run() },
-    { label: "Heading 2", pressed: active.heading2, run: () => editor.chain().focus().toggleHeading({ level: 2 }).run() },
-    { label: "Heading 3", pressed: active.heading3, run: () => editor.chain().focus().toggleHeading({ level: 3 }).run() },
-    { label: "Bold", pressed: active.bold, run: () => editor.chain().focus().toggleBold().run() },
-    { label: "Italic", pressed: active.italic, run: () => editor.chain().focus().toggleItalic().run() },
-    { label: "Underline", pressed: active.underline, run: () => editor.chain().focus().toggleUnderline().run() },
-    { label: "Strikethrough", pressed: active.strike, run: () => editor.chain().focus().toggleStrike().run() },
-    { label: "Bulleted list", pressed: active.bulletList, run: () => editor.chain().focus().toggleBulletList().run() },
-    { label: "Numbered list", pressed: active.orderedList, run: () => editor.chain().focus().toggleOrderedList().run() },
-    { label: "Quote", pressed: active.blockquote, run: () => editor.chain().focus().toggleBlockquote().run() },
-    { label: "Code block", pressed: active.codeBlock, run: () => editor.chain().focus().toggleCodeBlock().run() },
+  const textStyle = active.heading2 ? textStyles[1] : active.heading3 ? textStyles[2] : textStyles[0];
+  const marks: FormatCommand[] = [
+    { label: "Bold", icon: BoldIcon, pressed: active.bold, run: () => editor.chain().focus().toggleBold().run() },
+    { label: "Italic", icon: ItalicIcon, pressed: active.italic, run: () => editor.chain().focus().toggleItalic().run() },
+    { label: "Underline", icon: UnderlineIcon, pressed: active.underline, run: () => editor.chain().focus().toggleUnderline().run() },
+    { label: "Strikethrough", icon: StrikethroughIcon, pressed: active.strike, run: () => editor.chain().focus().toggleStrike().run() },
   ];
+  const blocks: FormatCommand[] = [
+    { label: "Bulleted list", icon: ListBulletIcon, pressed: active.bulletList, run: () => editor.chain().focus().toggleBulletList().run() },
+    { label: "Numbered list", icon: NumberedListIcon, pressed: active.orderedList, run: () => editor.chain().focus().toggleOrderedList().run() },
+    { label: "Quote", icon: ChatBubbleBottomCenterTextIcon, pressed: active.blockquote, run: () => editor.chain().focus().toggleBlockquote().run() },
+    { label: "Code block", icon: CodeBracketIcon, pressed: active.codeBlock, run: () => editor.chain().focus().toggleCodeBlock().run() },
+  ];
+  const linkLabel = active.link ? "Edit link" : "Add link";
+
+  function changeTextStyle(key: React.Key) {
+    const chain = editor.chain().focus();
+    switch (key) {
+      case "paragraph":
+        chain.setParagraph().run();
+        break;
+      case "heading-2":
+        chain.setHeading({ level: 2 }).run();
+        break;
+      case "heading-3":
+        chain.setHeading({ level: 3 }).run();
+        break;
+    }
+  }
 
   function closeLinkPanel() {
     setLink(null);
@@ -57,59 +102,121 @@ export default function FormattingToolbar({ editor }: { editor: Editor }) {
 
   function applyLink() {
     const href = link?.trim() ?? "";
-    if (!/^(https?:\/\/|mailto:|#|\/(?![/\\]))/i.test(href) || /[\s\u0000-\u001f]/u.test(href)) {
+    if (!validHref(href)) {
       setLinkError(true);
       return;
     }
-    editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+
+    const chain = editor.chain().focus();
+    if (editor.state.selection.empty && !editor.isActive("link")) {
+      chain.insertContent({ type: "text", text: href, marks: [{ type: "link", attrs: { href } }] }).run();
+    } else {
+      chain.extendMarkRange("link").setLink({ href }).run();
+    }
     closeLinkPanel();
   }
 
   return (
     <>
-      <div className={styles.toolbar} role="group" aria-label="Article formatting">
-        {commands.map(({ label, pressed, run }) => (
-          <Button
-            key={label}
-            variant="ghost"
-            size="sm"
-            type="button"
-            aria-pressed={pressed}
-            onPress={run}
-          >
-            {label}
-          </Button>
-        ))}
-        <Button
-          variant="ghost"
-          size="sm"
-          type="button"
-          aria-expanded={linkOpen}
-          onPress={() => {
-            if (linkOpen) closeLinkPanel();
-            else setLink(editor.getAttributes("link").href ?? "");
-          }}
-        >
-          {active.link ? "Edit link" : "Add link"}
-        </Button>
-        <Button variant="ghost" size="sm" type="button" isDisabled={!active.canUndo} onPress={() => editor.chain().focus().undo().run()}>
-          Undo
-        </Button>
-        <Button variant="ghost" size="sm" type="button" isDisabled={!active.canRedo} onPress={() => editor.chain().focus().redo().run()}>
-          Redo
-        </Button>
-      </div>
+      <Toolbar className={styles.toolbar} aria-label="Article formatting">
+        <div className={editorStyles.group}>
+          <Dropdown>
+            <Dropdown.Trigger
+              className={editorStyles.styleTrigger}
+              type="button"
+              aria-label={`Text style: ${textStyle.label}`}
+            >
+              {textStyle.label}
+              <ChevronDownIcon aria-hidden="true" className={editorStyles.icon} />
+            </Dropdown.Trigger>
+            <Dropdown.Popover placement="bottom start">
+              <Dropdown.Menu
+                aria-label="Text style"
+                selectionMode="single"
+                selectedKeys={[textStyle.id]}
+                onAction={changeTextStyle}
+              >
+                {textStyles.map(({ id, label }) => (
+                  <Dropdown.Item key={id} id={id} textValue={label}>
+                    {label}
+                    <Dropdown.ItemIndicator />
+                  </Dropdown.Item>
+                ))}
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
+        </div>
+
+        <ToggleGroup label="Text formatting" commands={marks} />
+        <ToggleGroup label="Lists and blocks" commands={blocks} />
+
+        <div className={editorStyles.group} role="group" aria-label="Links and history">
+          <Tooltip delay={300}>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              isIconOnly
+              isDisabled={active.codeBlock}
+              aria-label={linkLabel}
+              aria-expanded={linkOpen}
+              aria-controls={linkOpen ? `${linkId}-panel` : undefined}
+              onPress={() => {
+                if (linkOpen) closeLinkPanel();
+                else setLink(editor.getAttributes("link").href ?? "");
+              }}
+            >
+              <LinkIcon aria-hidden="true" className={editorStyles.icon} />
+            </Button>
+            <Tooltip.Content>{linkLabel}</Tooltip.Content>
+          </Tooltip>
+          <Tooltip delay={300}>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              isIconOnly
+              isDisabled={!active.canUndo}
+              aria-label="Undo"
+              onPress={() => editor.chain().focus().undo().run()}
+            >
+              <ArrowUturnLeftIcon aria-hidden="true" className={editorStyles.icon} />
+            </Button>
+            <Tooltip.Content>Undo</Tooltip.Content>
+          </Tooltip>
+          <Tooltip delay={300}>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              isIconOnly
+              isDisabled={!active.canRedo}
+              aria-label="Redo"
+              onPress={() => editor.chain().focus().redo().run()}
+            >
+              <ArrowUturnRightIcon aria-hidden="true" className={editorStyles.icon} />
+            </Button>
+            <Tooltip.Content>Redo</Tooltip.Content>
+          </Tooltip>
+        </div>
+      </Toolbar>
+
       {link !== null && (
-        <div className={styles.linkPanel}>
-          <label htmlFor="admin-editor-link">Link URL</label>
+        <div id={`${linkId}-panel`} className={styles.linkPanel}>
+          <label htmlFor={linkId}>Link URL</label>
           <div className={styles.linkControls}>
             <Input
               ref={linkInput}
-              id="admin-editor-link"
+              id={linkId}
               value={link}
+              inputMode="url"
+              spellCheck={false}
               aria-invalid={linkError || undefined}
-              aria-describedby={linkError ? "admin-link-error" : undefined}
-              onChange={(event) => setLink(event.target.value)}
+              aria-describedby={linkError ? `${linkId}-error` : undefined}
+              onChange={(event) => {
+                setLink(event.target.value);
+                setLinkError(false);
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   event.preventDefault();
@@ -130,9 +237,31 @@ export default function FormattingToolbar({ editor }: { editor: Editor }) {
             )}
             <Button size="sm" type="button" variant="ghost" onPress={closeLinkPanel}>Cancel</Button>
           </div>
-          {linkError && <p id="admin-link-error" className={styles.error} role="alert">Enter a web, email, or site link.</p>}
+          {linkError && <p id={`${linkId}-error`} className={styles.error} role="alert">Enter a valid web, email, or site link.</p>}
         </div>
       )}
     </>
+  );
+}
+
+function ToggleGroup({ label, commands }: { label: string; commands: FormatCommand[] }) {
+  return (
+    <div className={editorStyles.group} role="group" aria-label={label}>
+      {commands.map(({ label, icon: Icon, pressed, run }) => (
+        <Tooltip key={label} delay={300}>
+          <ToggleButton
+            size="sm"
+            isIconOnly
+            variant="ghost"
+            aria-label={label}
+            isSelected={pressed}
+            onChange={run}
+          >
+            <Icon aria-hidden="true" className={editorStyles.icon} />
+          </ToggleButton>
+          <Tooltip.Content>{label}</Tooltip.Content>
+        </Tooltip>
+      ))}
+    </div>
   );
 }

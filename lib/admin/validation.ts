@@ -55,8 +55,11 @@ export function isArticleSlug(value: string) {
     && !value.includes("/") && !value.includes("\\") && !hasControlCharacter(value);
 }
 
-export function validateArticleVersion(form: FormData): Validation<{ slug: string; updatedToken: string }> {
-  const slug = formString(form, "slug") ?? "";
+export function validateArticleVersion(
+  form: FormData,
+  slugField: "slug" | "originalSlug" = "slug",
+): Validation<{ slug: string; updatedToken: string }> {
+  const slug = formString(form, slugField) ?? "";
   const updatedToken = formString(form, "updatedToken") ?? "";
   if (!isArticleSlug(slug)) return { fieldErrors: { slug: "This article has an invalid URL." } };
   if (!VERSION.test(updatedToken)) {
@@ -65,17 +68,22 @@ export function validateArticleVersion(form: FormData): Validation<{ slug: strin
   return { data: { slug, updatedToken } };
 }
 
-export function validateArticle(form: FormData, mode: "create" | "update"): Validation<ArticleInput> {
+export function validateArticle(form: FormData, originalSlug?: string): Validation<ArticleInput> {
   const rawSlug = formString(form, "slug") ?? "";
-  const slug = mode === "create" ? rawSlug.trim() : rawSlug;
+  // Keep an existing URL exactly as supplied when the editor has left it unchanged.
+  const slug = rawSlug === originalSlug ? rawSlug : rawSlug.trim();
   const title = formString(form, "title")?.trim() ?? "";
   const summary = formString(form, "summary")?.trim();
   const topicSlug = formString(form, "topicSlug") ?? "";
   const published = formString(form, "published");
   const fieldErrors: Record<string, string> = {};
 
-  if (mode === "create" && (slug.length > 96 || !NEW_SLUG.test(slug))) {
-    fieldErrors.slug = "Use up to 96 lowercase letters, numbers, or hyphen-separated words.";
+  if (rawSlug !== originalSlug) {
+    if (slug.length > 96 || !NEW_SLUG.test(slug)) {
+      fieldErrors.slug = "Use up to 96 lowercase letters, numbers, or hyphen-separated words.";
+    } else if (slug === "new") {
+      fieldErrors.slug = "The slug “new” is reserved. Choose another URL.";
+    }
   }
   if (title.length === 0 || title.length > 160 || !title.isWellFormed() || hasControlCharacter(title)) {
     fieldErrors.title = "Enter a title between 1 and 160 characters.";
@@ -91,7 +99,7 @@ export function validateArticle(form: FormData, mode: "create" | "update"): Vali
   }
 
   let content: ArticleBody | null = null;
-  if (mode === "create" || form.has("body")) {
+  if (originalSlug === undefined || form.has("body")) {
     const body = formString(form, "body");
     try {
       content = parseArticleBody(body);
@@ -108,7 +116,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function validHref(value: unknown): value is string {
+export function validHref(value: unknown): value is string {
   if (typeof value !== "string" || value.length > 2048 || !value.isWellFormed() || hasControlCharacter(value)
     || /\s/.test(value) || value.includes("\\")) return false;
   if (value.startsWith("#") || (value.startsWith("/") && !value.startsWith("//"))) return true;

@@ -1,14 +1,16 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useId, useState } from "react";
 import type { JSONContent } from "@tiptap/core";
 import { StarterKit } from "@tiptap/starter-kit";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
-import { Alert, Button, FieldError, Input, Label, TextArea, TextField } from "@heroui/react";
+import { Alert, Button, Description, FieldError, Form, Input, InputGroup, Label, TextArea, TextField } from "@heroui/react";
 import Link from "next/link";
 import { createArticle, updateArticle } from "@/lib/admin/actions";
+import { slugFromTitle } from "@/lib/admin/slug";
 import FormattingToolbar from "./formatting-toolbar";
 import styles from "../admin.module.css";
+import editorStyles from "./editor.module.css";
 
 type Topic = { slug: string; title: string; parentSlug: string | null };
 
@@ -44,11 +46,6 @@ function editorContent(article?: ExistingArticle): JSONContent {
   return paragraphs.length ? { type: "doc", content: paragraphs } : emptyDocument;
 }
 
-function slugFromTitle(title: string) {
-  return title.normalize("NFKD").toLowerCase().replace(/\p{M}/gu, "")
-    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 96).replace(/-$/g, "");
-}
-
 export function SaveError({ message }: { message: string }) {
   return (
     <Alert status="danger" role="alert">
@@ -60,6 +57,10 @@ export function SaveError({ message }: { message: string }) {
 
 export default function AdminArticleForm({ article, topics }: { article?: ExistingArticle; topics: Topic[] }) {
   const [result, save, saving] = useActionState(article ? updateArticle : createArticle, {});
+  const formId = useId();
+  const topicId = `${formId}-topic`;
+  const statusId = `${formId}-status`;
+  const bodyLabelId = `${formId}-body-label`;
   const [title, setTitle] = useState(article?.title ?? "");
   const [summary, setSummary] = useState(article?.summary ?? "");
   const [topic, setTopic] = useState(article?.topicSlug ?? "");
@@ -73,9 +74,8 @@ export default function AdminArticleForm({ article, topics }: { article?: Existi
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        "aria-labelledby": "article-body-label",
+        "aria-labelledby": bodyLabelId,
         "aria-multiline": "true",
-        id: "admin-article-body",
         role: "textbox",
         spellcheck: "true",
       },
@@ -89,16 +89,23 @@ export default function AdminArticleForm({ article, topics }: { article?: Existi
 
   const errors = result.fieldErrors ?? {};
   const topicsBySlug = new Map(topics.map((item) => [item.slug, item.title]));
+  const slug = slugOverride ?? article?.slug ?? slugFromTitle(title);
 
   return (
-    <form action={save} className={styles.form} aria-busy={saving}>
+    <Form
+      action={save}
+      className={styles.form}
+      aria-busy={saving}
+      validationBehavior="aria"
+      render={(props) => <form {...props} onResetCapture={(event) => event.preventDefault()} />}
+    >
       {result.error && <SaveError message={result.error} />}
       {Object.keys(errors).length > 0 && !result.error && (
         <p className={styles.error} role="alert">Review the fields marked below.</p>
       )}
       {article && (
         <>
-          <input type="hidden" name="slug" value={article.slug} />
+          <input type="hidden" name="originalSlug" value={article.slug} />
           <input type="hidden" name="updatedToken" value={article.updatedToken} />
         </>
       )}
@@ -111,27 +118,33 @@ export default function AdminArticleForm({ article, topics }: { article?: Existi
           {errors.title && <FieldError>{errors.title}</FieldError>}
         </TextField>
 
-        {article ? (
-          <div className={styles.slug}>
-            <span>Article URL</span>
-            {article.published
-              ? <Link href={`/articles/${encodeURIComponent(article.slug)}`}>/articles/{article.slug}</Link>
-              : <code>/articles/{article.slug}</code>}
-          </div>
-        ) : (
-          <TextField
-            className={styles.field}
-            name="slug"
-            value={slugOverride ?? slugFromTitle(title)}
-            onChange={setSlugOverride}
-            isRequired
-            isInvalid={!!errors.slug}
-          >
-            <Label>URL slug</Label>
-            <Input fullWidth maxLength={96} spellCheck={false} />
-            {errors.slug && <FieldError>{errors.slug}</FieldError>}
-          </TextField>
-        )}
+        <TextField
+          className={styles.field}
+          name="slug"
+          value={slug}
+          onChange={setSlugOverride}
+          isRequired
+          isInvalid={!!errors.slug}
+        >
+          <Label>Article URL slug</Label>
+          <InputGroup fullWidth>
+            <InputGroup.Prefix aria-hidden="true">/articles/</InputGroup.Prefix>
+            <InputGroup.Input maxLength={96} autoCapitalize="none" autoComplete="off" spellCheck={false} />
+          </InputGroup>
+          <Description className={editorStyles.hint}>
+            Use lowercase letters, numbers, and hyphens.
+            {article?.published && " Changing the slug breaks links to the current URL."}
+          </Description>
+          {errors.slug && <FieldError>{errors.slug}</FieldError>}
+          {article && (
+            <div className={`${styles.slug} ${editorStyles.currentUrl}`}>
+              <span>Current URL</span>
+              {article.published
+                ? <Link href={`/articles/${encodeURIComponent(article.slug)}`}>/articles/{article.slug}</Link>
+                : <code>/articles/{article.slug}</code>}
+            </div>
+          )}
+        </TextField>
 
         <TextField className={styles.field} name="summary" value={summary} onChange={setSummary} isInvalid={!!errors.summary}>
           <Label>Summary</Label>
@@ -141,15 +154,15 @@ export default function AdminArticleForm({ article, topics }: { article?: Existi
 
         <div className={styles.fieldPair}>
           <div className={styles.field}>
-            <label htmlFor="admin-article-topic">Topic</label>
+            <label htmlFor={topicId}>Topic</label>
             <select
-              id="admin-article-topic"
+              id={topicId}
               name="topicSlug"
               value={topic}
               onChange={(event) => setTopic(event.target.value)}
               required
               aria-invalid={errors.topicSlug ? true : undefined}
-              aria-describedby={errors.topicSlug ? "admin-topic-error" : undefined}
+              aria-describedby={errors.topicSlug ? `${topicId}-error` : undefined}
             >
               <option value="">Select a topic</option>
               {topics.map(({ slug, title, parentSlug }) => (
@@ -158,26 +171,26 @@ export default function AdminArticleForm({ article, topics }: { article?: Existi
                 </option>
               ))}
             </select>
-            {errors.topicSlug && <p id="admin-topic-error" className={styles.error}>{errors.topicSlug}</p>}
+            {errors.topicSlug && <p id={`${topicId}-error`} className={styles.error}>{errors.topicSlug}</p>}
           </div>
           <div className={styles.field}>
-            <label htmlFor="admin-article-status">Publication status</label>
+            <label htmlFor={statusId}>Publication status</label>
             <select
-              id="admin-article-status"
+              id={statusId}
               name="published"
               value={published}
               onChange={(event) => setPublished(event.target.value)}
               aria-invalid={errors.published ? true : undefined}
-              aria-describedby={errors.published ? "admin-publication-error" : undefined}
+              aria-describedby={errors.published ? `${statusId}-error` : undefined}
             >
               <option value="false">Draft</option>
               <option value="true">Published</option>
             </select>
-            {errors.published && <p id="admin-publication-error" className={styles.error}>{errors.published}</p>}
+            {errors.published && <p id={`${statusId}-error`} className={styles.error}>{errors.published}</p>}
           </div>
         </div>
 
-        <BodyField editor={editor} error={errors.body} />
+        <BodyField editor={editor} labelId={bodyLabelId} error={errors.body} />
       </fieldset>
 
       <div className={styles.formActions}>
@@ -186,26 +199,25 @@ export default function AdminArticleForm({ article, topics }: { article?: Existi
         </Button>
         <Link className={styles.backLink} href="/admin" prefetch={false}>Cancel</Link>
       </div>
-    </form>
+    </Form>
   );
 }
 
-function BodyField({ editor, error }: { editor: Editor | null; error?: string }) {
+function BodyField({ editor, labelId, error }: { editor: Editor | null; labelId: string; error?: string }) {
+  const helpId = `${labelId}-help`;
+  const errorId = `${labelId}-error`;
   useEffect(() => {
     if (!editor) return;
     const element = editor.view.dom;
-    if (error) {
-      element.setAttribute("aria-invalid", "true");
-      element.setAttribute("aria-describedby", "admin-body-error");
-    } else {
-      element.removeAttribute("aria-invalid");
-      element.removeAttribute("aria-describedby");
-    }
-  }, [editor, error]);
+    element.setAttribute("aria-describedby", error ? `${helpId} ${errorId}` : helpId);
+    if (error) element.setAttribute("aria-invalid", "true");
+    else element.removeAttribute("aria-invalid");
+  }, [editor, error, errorId, helpId]);
 
   return (
     <div className={styles.field}>
-      <span id="article-body-label">Article body</span>
+      <span id={labelId}>Article body</span>
+      <p id={helpId} className={editorStyles.hint}>Use headings for sections and lists for steps.</p>
       <div className={styles.editor}>
         {editor ? (
           <>
@@ -214,7 +226,7 @@ function BodyField({ editor, error }: { editor: Editor | null; error?: string })
           </>
         ) : <p className={styles.editorLoading} role="status">Loading editor…</p>}
       </div>
-      {error && <p id="admin-body-error" className={styles.error}>{error}</p>}
+      {error && <p id={errorId} className={styles.error}>{error}</p>}
     </div>
   );
 }

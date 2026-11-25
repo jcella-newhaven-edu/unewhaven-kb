@@ -1,5 +1,5 @@
 import "server-only";
-import { Pool, type QueryResultRow } from "pg";
+import { Pool, type PoolClient, type QueryResultRow } from "pg";
 
 // Reuse the pool across module reloads during development.
 const globalForPostgres = globalThis as typeof globalThis & { knowledgeBasePool?: Pool };
@@ -24,4 +24,24 @@ function getPool(): Pool {
 export async function queryRows<Row extends QueryResultRow>(sql: string, values: unknown[] = []): Promise<Row[]> {
   const { rows } = await getPool().query<Row>(sql, values);
   return rows;
+}
+
+export async function withTransaction<Result>(run: (client: PoolClient) => Promise<Result>): Promise<Result> {
+  const client = await getPool().connect();
+  let discard = false;
+  try {
+    await client.query("BEGIN ISOLATION LEVEL READ COMMITTED");
+    const result = await run(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      discard = true;
+    }
+    throw error;
+  } finally {
+    client.release(discard);
+  }
 }
