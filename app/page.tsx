@@ -1,158 +1,201 @@
+import {
+  AcademicCapIcon,
+  ArrowRightIcon,
+  ArrowUpRightIcon,
+  BookOpenIcon,
+  ChevronRightIcon,
+  EnvelopeIcon,
+  LockClosedIcon,
+  MagnifyingGlassIcon,
+  PrinterIcon,
+  ShieldCheckIcon,
+  WifiIcon,
+} from "@heroicons/react/24/outline";
+import { Button, Card } from "@heroui/react";
 import Link from "next/link";
-import { Button, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@heroui/react";
-
-// import { getRecentArticles, getTopics } from "@/lib/articles";
-
-import { getRecentArticles } from "@/lib/data/articles";
+import { getArticleSlugs, getRecentArticles } from "@/lib/data/articles";
 import { getAllTopics, getTopics } from "@/lib/data/topics";
+import { IT_SUPPORT_URL } from "@/lib/site-links";
+import styles from "./home.module.css";
 
-const formatDate = (date: Date) =>
-  new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(date);
+const commonTasks = [
+  {
+    title: "Reset your password",
+    icon: LockClosedIcon,
+    guideSlugs: ["reset-or-change-your-university-password", "reset-your-university-password", "reset-your-password"],
+    fallback: "https://studentsupport.newhaven.edu/login-trouble/",
+  },
+  {
+    title: "Set up MFA",
+    icon: ShieldCheckIcon,
+    guideSlugs: ["set-up-microsoft-authenticator", "set-up-mfa"],
+    fallback: "https://studentsupport.newhaven.edu/mfa/",
+  },
+  {
+    title: "Connect to campus Wi-Fi",
+    icon: WifiIcon,
+    guideSlugs: ["connect-a-computer-or-phone-to-chargerwifi", "connect-to-chargerwifi", "connect-to-campus-wi-fi"],
+    fallback: "https://studentsupport.newhaven.edu/network-connectivity/chargerwifi/",
+  },
+  {
+    title: "Print on campus",
+    icon: PrinterIcon,
+    guideSlugs: ["print-on-campus-using-the-student-printing-service", "print-on-campus", "find-a-campus-printer-and-check-printing-costs"],
+    fallback: "https://studentsupport.newhaven.edu/printing-on-campus/",
+  },
+];
 
-// Focus ring for links on light backgrounds (yellow in dark mode).
-const focusRing =
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus";
+const topicIcons = [
+  { matches: /account|sign-in|password/, icon: LockClosedIcon },
+  { matches: /email|outlook|microsoft|collaboration/, icon: EnvelopeIcon },
+  { matches: /wifi|wi-fi|connectivity|network|remote-access/, icon: WifiIcon },
+  { matches: /device|software|print/, icon: PrinterIcon },
+  { matches: /academic|learning|classroom|canvas/, icon: AcademicCapIcon },
+  { matches: /security|privacy|safety/, icon: ShieldCheckIcon },
+];
+
+const dateFormat = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
 
 export default async function Home() {
-  const [recent, topics, allTopics] = await Promise.all([getRecentArticles(4), getTopics(), getAllTopics()]);
-
-  // Titles for every topic and subtopic, so recent articles in a subtopic show its name.
-  const topicTitles = new Map(allTopics.map((t) => [t.slug, t.title]));
+  const [topics, recent, publishedSlugs, allTopics] = await Promise.all([
+    getTopics(),
+    getRecentArticles(4),
+    getArticleSlugs(),
+    getAllTopics(),
+  ]);
+  const published = new Set(publishedSlugs.map(({ slug }) => slug));
+  const topicTitles = new Map(allTopics.map(({ slug, title }) => [slug, title]));
 
   return (
-    <main className="flex-1 bg-background text-foreground">
-       {/* Hero */}
-      <section className="bg-gradient-to-b from-unh-primary to-unh-deep text-white">
-        {/* Same width as the sections below, so the left edges line up. */}
-        <div className="mx-auto max-w-6xl px-4 pb-16 pt-14 sm:px-6 sm:pb-20 sm:pt-20">
-          <h1 className="font-serif text-4xl tracking-tight sm:text-6xl">Find an answer</h1>
-          <p className="mt-4 max-w-xl text-lg text-slate-300">
-            Guides, how-tos and reference articles, all in one place.
-          </p>
+    <main className={styles.main}>
+      <div className={`kb-shell ${styles.home}`}>
+        <section className={styles.hero} aria-labelledby="home-heading">
+          <div className={styles.heroContent}>
+            <h1 id="home-heading">Find your IT answers.</h1>
+            <p>Guides for your University account, campus Wi-Fi, printing, and classroom technology.</p>
+            <form action="/search" method="get" role="search" aria-label="Knowledge base" className={styles.heroSearch}>
+              <MagnifyingGlassIcon aria-hidden="true" className={styles.searchIcon} />
+              <label htmlFor="home-search-query" className="sr-only">
+                Search the knowledge base
+              </label>
+              <input
+                id="home-search-query"
+                name="q"
+                type="search"
+                placeholder="Search by task, service, or error"
+                autoComplete="off"
+                maxLength={100}
+                required
+              />
+              <Button type="submit" variant="primary" className={styles.searchButton}>Search</Button>
+            </form>
+          </div>
+          <div className={styles.heroArt} aria-hidden="true">
+            <div className={styles.artOrbit} />
+            <div className={`${styles.artSheet} ${styles.artSheetBack}`} />
+            <div className={styles.artSheet}>
+              <span /><span /><span /><span /><span />
+            </div>
+            <div className={styles.artLens}><MagnifyingGlassIcon /></div>
+          </div>
+        </section>
 
-          <form action="/search" method="get" role="search" className="mt-10 flex max-w-3xl flex-col gap-4 sm:flex-row sm:items-end">
-            <label htmlFor="q" className="sr-only">
-              Search the knowledge base
-            </label>
-            <input
-              id="q"
-              name="q"
-              type="search"
-              placeholder="Search for a topic, error or question"
-              autoComplete="off"
-              className="w-full flex-1 border-b-[3px] border-unh-secondary bg-transparent pb-2 font-serif text-xl text-white placeholder:text-slate-400 focus:border-unh-tertiary-light focus:outline-none sm:text-2xl"
-            />
-            <button
-              type="submit"
-              className="rounded-md bg-unh-secondary px-6 py-3 font-semibold text-unh-primary transition-colors hover:bg-[#ffd65c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-unh-secondary"
-            >
-              Search
-            </button>
-            <Button type="submit" className={"rounded-full hover:ring-2 hover:ring-green-500 font-bold border border-unh-tertiary border-2 bg-white px-6 py-3 font-semibold text-unh-primary transition-colors hover:border-blue hover:text-unh-secondary hover:border-unh-primary font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-unh-secondary"}>Submit</Button>
-            <Button
-  variant="outline"
-  className="h-11 min-w-50 rounded-full border-2 border-[#3360c1] px-6 text-[15px] font-extrabold tracking-wide text-unh-primary uppercase transition-colors [--button-bg:white] [--button-bg-hover:var(--color-unh-primary)] [--button-bg-pressed:var(--color-unh-primary)] hover:border-unh-primary hover:text-unh-secondary hover:inset-ring-2 hover:inset-ring-white focus-visible:border-unh-primary focus-visible:text-unh-secondary focus-visible:inset-ring-2 focus-visible:inset-ring-white focus-visible:[--button-bg:var(--color-unh-primary)] dark:border-[#6b93e6] dark:text-white dark:[--button-bg:transparent] dark:[--button-bg-hover:var(--color-unh-secondary)] dark:[--button-bg-pressed:var(--color-unh-secondary)] dark:hover:border-unh-secondary dark:hover:text-unh-primary dark:hover:inset-ring-brand-deep dark:focus-visible:border-unh-secondary dark:focus-visible:text-unh-primary dark:focus-visible:inset-ring-brand-deep dark:focus-visible:[--button-bg:var(--color-unh-secondary)]"
->
-  Request information
-</Button>
-
-<Button variant="outline" size="lg" className={"font-bold bg-white text-unh-primary border-unh-tertiary hover:border-unh-secondary focus:border-unh-tertiary hover:ring hover:ring-blue-500 hover:border-green"}>Submit</Button>
-          </form>
-        </div>
-      </section>
-
-       {/* Topics */}
-       <section aria-labelledby="topics-heading" className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-         <div className="flex items-baseline justify-between gap-4">
-           <h2 id="topics-heading" className="font-serif text-2xl text-unh-primary sm:text-3xl dark:text-white">
-             Browse by topic
-           </h2>
-           <Link 
-             href="/topics"
-             className={`font-medium text-link underline decoration-2 underline-offset-4 ${focusRing}`}
-           >
-             All topics
-           </Link>
-         </div>
-        {topics.length === 0 && (
-          <p className="mt-6 text-slate-600 dark:text-slate-400">No topics yet. Add some to the topics collection.</p>
-        )}
-        <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {topics.map((topic) => (
-            <li key={topic.slug}>
-              {/* The whole card is the link. HeroUI's Card is a <div>, so it sits inside <Link>;
-                  rounded-3xl matches the card's corners so the focus ring follows them. */}
-              <Link href={`/topics/${topic.slug}`} className={`group block h-full rounded-3xl ${focusRing}`}>
-                <Card className="h-full border border-unh-primary-200 hover:bg-unh-tertiary/5 transition group-hover:-translate-y-0.5 group-hover:shadow-lg group-hover:shadow-unh-primary/10 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0">
-                  <CardHeader>
-                    <span aria-hidden="true" className="mb-3 block h-1 w-10 rounded-full bg-unh-secondary" />
-                    <CardTitle className="font-serif text-xl text-unh-primary group-hover:underline group-hover:decoration-unh-tertiary-light group-hover:underline-offset-4 dark:text-white">
-                      {topic.title}
-                    </CardTitle>
-                    {topic.description && <CardDescription className="mt-1">{topic.description}</CardDescription>}
-                  </CardHeader>
-                  {topic.subtopics.length > 0 && (
-                    <CardContent className="text-sm text-muted">
-                      Includes {topic.subtopics.map((s) => s.title).join(", ")}
-                    </CardContent>
-                  )}
-                  <CardFooter className="mt-auto text-sm font-medium text-muted">
-                    {topic.articleCount} {topic.articleCount === 1 ? "article" : "articles"}
-                  </CardFooter>
-                </Card>
+        <div className={styles.homeContent}>
+          <section aria-labelledby="topics-heading">
+            <div className={styles.sectionHead}>
+              <h2 id="topics-heading">Browse by topic</h2>
+              <Link href="/articles" className={styles.textLink}>
+                All guides <ArrowRightIcon aria-hidden="true" />
               </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
+            </div>
+            {topics.length ? (
+              <ul className={styles.topicGrid}>
+                {topics.map((topic) => {
+                  const Icon = topicIcons.find(({ matches }) => matches.test(topic.slug))?.icon ?? BookOpenIcon;
+                  return (
+                    <li key={topic.slug}>
+                      <Link href={`/topics/${topic.slug}`} className={styles.topicLink}>
+                        <Card className={styles.topicCard}>
+                          <div className={styles.cardTop}>
+                            <span className={styles.topicIcon}><Icon aria-hidden="true" /></span>
+                            <ArrowRightIcon className={styles.cardArrow} aria-hidden="true" />
+                          </div>
+                          <div>
+                            <Card.Title className={styles.cardTitle}>{topic.title}</Card.Title>
+                            {topic.description && (
+                              <Card.Description className={styles.cardDescription}>{topic.description}</Card.Description>
+                            )}
+                          </div>
+                        </Card>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className={styles.empty}>No topics are available yet.</p>
+            )}
+          </section>
 
-      {/* Recently updated */}
-       <section
-        aria-labelledby="recent-heading"
-        className="border-t border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-unh-primary/40"
-      >
-        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-          <h2 id="recent-heading" className="font-serif text-2xl text-unh-primary sm:text-3xl dark:text-white">
-            Recently updated
-          </h2>
-          {recent.length === 0 && (
-            <p className="mt-6 text-slate-600 dark:text-slate-400">No published articles yet.</p>
-          )}
-          <ul className="mt-6 divide-y divide-slate-200 overflow-hidden rounded-lg border border-slate-200 bg-white dark:divide-slate-700 dark:border-slate-700 dark:bg-unh-deep">
-            {recent.map((article) => (
-              <li key={article.slug}>
-                <Link
-                  href={`/articles/${article.slug}`}
-                  className={`flex flex-col gap-1 px-5 py-4 transition-colors hover:bg-sky-50 sm:flex-row sm:items-center sm:justify-between dark:hover:bg-unh-primary ${focusRing} focus-visible:-outline-offset-2`}
-                >
-                  <span className="font-medium text-unh-primary dark:text-white">{article.title}<br/><span className="text-slate-400">{article.summary}</span></span>
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {topicTitles.get(article.topicSlug) ?? article.topicSlug}, updated{" "}
-
-
-                    <time dateTime={article.updated.toISOString()}>{formatDate(article.updated)}</time>                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <aside className={styles.quickTasks} aria-labelledby="quick-tasks-heading">
+            <h2 id="quick-tasks-heading">Common tasks</h2>
+            <ul>
+              {commonTasks.map(({ title, icon: Icon, guideSlugs, fallback }) => {
+                const slug = guideSlugs.find((candidate) => published.has(candidate));
+                const label = (
+                  <>
+                    <Icon aria-hidden="true" />
+                    <span>{title}</span>
+                    <ChevronRightIcon aria-hidden="true" />
+                  </>
+                );
+                return (
+                  <li key={title}>
+                    {slug ? <Link href={`/articles/${slug}`}>{label}</Link> : <a href={fallback}>{label}</a>}
+                  </li>
+                );
+              })}
+            </ul>
+          </aside>
         </div>
-      </section>
 
-    {/* //   Help  */}
-       <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-         <div className="flex flex-col items-start gap-4 rounded-lg bg-unh-primary p-8 text-white sm:flex-row sm:items-center sm:justify-between">
-           <div>
-             <h2 className="font-serif text-2xl">Can’t find what you need?</h2>
-             <p className="mt-1 text-slate-300">Our support team is happy to help.</p>
-           </div>
-           <Link
-            href="/contact"
-            className="shrink-0 rounded-md bg-unh-secondary px-5 py-3 font-semibold text-unh-primary transition-colors hover:bg-[#ffd65c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-unh-secondary"
-          >
-            Contact support
-          </Link>
-        </div>
-      </section>
+        <section className={styles.supportBand} aria-labelledby="help-heading">
+          <div>
+            <h2 id="help-heading">Still need help?</h2>
+            <p>Find the right support team for your University role.</p>
+          </div>
+          <a className={styles.supportLink} href={IT_SUPPORT_URL}>
+            Contact IT <ArrowUpRightIcon aria-hidden="true" />
+          </a>
+        </section>
+
+        {recent.length > 0 && (
+          <section className={styles.recent} aria-labelledby="recent-heading">
+            <div className={styles.sectionHead}>
+              <h2 id="recent-heading">Recently updated</h2>
+            </div>
+            <ul className={styles.recentList}>
+              {recent.map((article) => (
+                <li key={article.slug}>
+                  <Link href={`/articles/${article.slug}`}>
+                    <span className={styles.recentTitle}>{article.title}</span>
+                    <span className={styles.recentDetails}>
+                      {topicTitles.get(article.topicSlug) ?? article.topicSlug}
+                      <span aria-hidden="true"> · </span>
+                      <time dateTime={article.updated.toISOString()}>{dateFormat.format(article.updated)}</time>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </div>
     </main>
   );
 }

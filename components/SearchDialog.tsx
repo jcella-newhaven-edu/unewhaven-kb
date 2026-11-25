@@ -3,8 +3,7 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Autocomplete } from "react-aria-components/Autocomplete";
-import { Button } from "react-aria-components/Button";
-import { Kbd, ListBox, Modal, SearchField } from "@heroui/react";
+import { Button, Kbd, ListBox, Modal, SearchField } from "@heroui/react";
 import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import type { SearchResult } from "@/lib/data/search";
 
@@ -31,17 +30,24 @@ export default function SearchDialog() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      if (e.key === "Escape" && isOpen) {
         e.preventDefault();
-        setOpen((open) => !open);
+        e.stopPropagation();
+        setOpen(false);
+        setQuery("");
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setOpen(!isOpen);
+        if (isOpen) setQuery("");
       } else if (e.key === "/" && !e.metaKey && !e.ctrlKey && !isTypingIn(e.target)) {
         e.preventDefault();
         setOpen(true);
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+    // Close the modal before the search field handles Escape as a clear action.
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [isOpen]);
 
   // Search after a short pause in typing; an empty query loads suggestions straight away.
   useEffect(() => {
@@ -81,95 +87,100 @@ export default function SearchDialog() {
   const heading = trimmed ? "Articles" : "Recently updated";
 
   return (
-    <>
-      {/* The trigger button goes inside <Modal> (React Aria's DialogTrigger), which opens the
-          dialog when it's pressed. It must be a React Aria Button to receive those presses. */}
-      <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
-        <Button
-          aria-label="Search articles"
-          className="rounded-full flex items-center gap-2  bg-white/10 py-1.5 pl-2.5 pr-2 text-sm text-white/80 ring-1 ring-white/20 ring-inset transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-unh-secondary sm:w-56"
-        >
-          <MagnifyingGlassIcon aria-hidden="true" className="size-4 shrink-0" />
-          {/* <span className="hidden flex-1 text-left sm:inline">Search...</span> */}
-          <Kbd className="hidden border-white/20 bg-white/10 text-xs text-white/70 sm:inline-flex">
-            <Kbd.Abbr keyValue={mac ? "command" : "ctrl"} />
-            <Kbd.Content>K</Kbd.Content>
-          </Kbd>
-        </Button>
+    <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
+      <Button
+        aria-label="Search articles"
+        aria-keyshortcuts="Control+K Meta+K"
+        variant="secondary"
+        size="sm"
+        className="size-8 min-w-8 gap-2 rounded-lg border border-kb-line bg-kb-panel px-0 font-semibold text-kb-heading data-[hovered=true]:bg-kb-hover sm:h-9 sm:w-auto sm:px-2.5"
+      >
+        <MagnifyingGlassIcon aria-hidden="true" className="size-4 shrink-0" />
+        <span className="hidden sm:inline">Search</span>
+        <Kbd className="hidden border-kb-line bg-background text-xs text-kb-muted lg:inline-flex">
+          <Kbd.Abbr keyValue={mac ? "command" : "ctrl"} />
+          <Kbd.Content>K</Kbd.Content>
+        </Kbd>
+      </Button>
 
-        <Modal.Backdrop variant="blur">
-          <Modal.Container placement="top" size="lg">
-            <Modal.Dialog aria-label="Search the knowledge base" className="gap-0 overflow-hidden p-0">
-              <Autocomplete inputValue={query} onInputChange={setQuery}>
-                <div className="border-b border-border p-3">
-                  <SearchField aria-label="Search articles" autoFocus>
-                    <SearchField.Group>
-                      <SearchField.SearchIcon />
-                      <SearchField.Input placeholder="Search articles…" />
-                      <SearchField.ClearButton />
-                    </SearchField.Group>
-                  </SearchField>
-                </div>
-
-                <div className="max-h-[min(60vh,28rem)] overflow-y-auto p-2" aria-busy={isLoading}>
-                  {results.length > 0 && (
-                    <p className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wider text-muted">{heading}</p>
-                  )}
-                  <ListBox
-                    aria-label={heading}
-                    items={results}
-                    onAction={(slug) => go(`/articles/${slug}`)}
-                    renderEmptyState={() => (
-                      <p className="px-3 py-8 text-center text-sm text-muted">
-                        {isLoading ? "Searching…" : trimmed ? <>No articles match “{trimmed}”.</> : "No articles yet."}
-                      </p>
-                    )}
-                  >
-                    {(r) => (
-                      <ListBox.Item id={r.slug} textValue={r.title} className="flex-col items-start gap-0.5 rounded-lg px-3 py-2.5">
-                        <span className="flex w-full items-baseline justify-between gap-3">
-                          <span className="font-medium text-foreground">{highlight(r.title, trimmed)}</span>
-                          <span className="shrink-0 text-xs text-muted">{r.topicTitle}</span>
-                        </span>
-                        {r.summary && <span className="line-clamp-1 text-sm text-muted">{highlight(r.summary, trimmed)}</span>}
-                      </ListBox.Item>
-                    )}
-                  </ListBox>
-                </div>
-              </Autocomplete>
-
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-2.5 text-xs text-muted">
-                <span className="flex items-center gap-3">
-                  <span className="flex items-center gap-1">
-                    <Kbd><Kbd.Abbr keyValue="up" /></Kbd>
-                    <Kbd><Kbd.Abbr keyValue="down" /></Kbd>
-                    to move
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Kbd><Kbd.Abbr keyValue="enter" /></Kbd>
-                    to open
-                  </span>
-                  <span className="hidden items-center gap-1 sm:flex">
-                    {/* Text, not HeroUI's escape glyph, which reads like a "refresh" arrow. */}
-                    <Kbd><Kbd.Content>Esc</Kbd.Content></Kbd>
-                    to close
-                  </span>
-                </span>
-                {trimmed && (
-                  <button
-                    type="button"
-                    onClick={() => go(`/search?q=${encodeURIComponent(trimmed)}`)}
-                    className="rounded-sm font-medium text-link hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                  >
-                    See all results
-                  </button>
-                )}
+      <Modal.Backdrop variant="blur">
+        <Modal.Container placement="top" size="lg">
+          <Modal.Dialog className="gap-0 overflow-hidden border border-kb-line bg-background p-0">
+            <Modal.Header className="px-4 pt-4 pb-0">
+              <Modal.Heading className="text-lg font-semibold tracking-tight text-kb-heading">
+                Search the knowledge base
+              </Modal.Heading>
+              <Modal.CloseTrigger aria-label="Close search" />
+            </Modal.Header>
+            <Autocomplete inputValue={query} onInputChange={setQuery}>
+              <div className="border-b border-border p-3">
+                <SearchField aria-label="Search articles" autoFocus>
+                  <SearchField.Group>
+                    <SearchField.SearchIcon />
+                    <SearchField.Input placeholder="Search articles…" />
+                    <SearchField.ClearButton />
+                  </SearchField.Group>
+                </SearchField>
               </div>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
-      </Modal>
-    </>
+
+              <div className="max-h-[min(60vh,28rem)] overflow-y-auto p-2" aria-busy={isLoading}>
+                {results.length > 0 && (
+                  <p className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wider text-muted">{heading}</p>
+                )}
+                <ListBox
+                  aria-label={heading}
+                  items={results}
+                  onAction={(slug) => go(`/articles/${slug}`)}
+                  renderEmptyState={() => (
+                    <p className="px-3 py-8 text-center text-sm text-muted">
+                      {isLoading ? "Searching…" : trimmed ? <>No articles match “{trimmed}”.</> : "No articles yet."}
+                    </p>
+                  )}
+                >
+                  {(r) => (
+                    <ListBox.Item id={r.slug} textValue={r.title} className="flex-col items-start gap-0.5 rounded-lg px-3 py-2.5">
+                      <span className="flex w-full items-baseline justify-between gap-3">
+                        <span className="font-medium text-foreground">{highlight(r.title, trimmed)}</span>
+                        <span className="shrink-0 text-xs text-muted">{r.topicTitle}</span>
+                      </span>
+                      {r.summary && <span className="line-clamp-1 text-sm text-muted">{highlight(r.summary, trimmed)}</span>}
+                    </ListBox.Item>
+                  )}
+                </ListBox>
+              </div>
+            </Autocomplete>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-2.5 text-xs text-muted">
+              <span className="flex items-center gap-3">
+                <span className="flex items-center gap-1">
+                  <Kbd><Kbd.Abbr keyValue="up" /></Kbd>
+                  <Kbd><Kbd.Abbr keyValue="down" /></Kbd>
+                  to move
+                </span>
+                <span className="flex items-center gap-1">
+                  <Kbd><Kbd.Abbr keyValue="enter" /></Kbd>
+                  to open
+                </span>
+                <span className="hidden items-center gap-1 sm:flex">
+                  {/* Text, not HeroUI's escape glyph, which reads like a "refresh" arrow. */}
+                  <Kbd><Kbd.Content>Esc</Kbd.Content></Kbd>
+                  to close
+                </span>
+              </span>
+              {trimmed && (
+                <button
+                  type="button"
+                  onClick={() => go(`/search?q=${encodeURIComponent(trimmed)}`)}
+                  className="rounded-sm font-medium text-link hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                >
+                  See all results
+                </button>
+              )}
+            </div>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+    </Modal>
   );
 }
 

@@ -1,69 +1,86 @@
+import { Accordion } from "@heroui/react";
 import Link from "next/link";
-import { getArticlesByTopics, type ArticleSummary } from "@/lib/data/articles";
-import { getSubtopics, getTopicTrail } from "@/lib/data/topics";
+import { getAllArticles, type ArticleSummary } from "@/lib/data/articles";
+import { getAllTopics } from "@/lib/data/topics";
+import styles from "@/app/articles/[slug]/article.module.css";
 
-const focusRing = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus";
+export default async function TopicSidebar({
+  rootSlug,
+  currentSlug,
+}: {
+  rootSlug?: string;
+  currentSlug: string;
+}) {
+  const [topics, articles] = await Promise.all([getAllTopics(), getAllArticles()]);
+  const topicSlugs = new Set(topics.map((topic) => topic.slug));
+  const roots = topics.filter((topic) => !topic.parentSlug || !topicSlugs.has(topic.parentSlug));
+  if (!roots.length) return null;
 
-/**
- * Everything in the current article's top-level topic: its own articles, then each subtopic
- * with its articles. The current article is highlighted.
- */
-export default async function TopicSidebar({ topicSlug, currentSlug }: { topicSlug: string; currentSlug: string }) {
-  const [root] = await getTopicTrail(topicSlug); // the top-level topic, even when the article is in a subtopic
-  if (!root) return null;
-
-  const subtopics = await getSubtopics(root.slug);
-  const articles = await getArticlesByTopics([root.slug, ...subtopics.map((s) => s.slug)]);
-  const articlesIn = (slug: string) => articles.filter((a) => a.topicSlug === slug);
-  const groups = subtopics.map((s) => ({ topic: s, articles: articlesIn(s.slug) })).filter((g) => g.articles.length > 0);
+  const byTopic = new Map<string, ArticleSummary[]>();
+  for (const article of articles) {
+    const group = byTopic.get(article.topicSlug) ?? [];
+    group.push(article);
+    byTopic.set(article.topicSlug, group);
+  }
 
   return (
-    <nav aria-labelledby="topic-sidebar-heading" className="lg:sticky lg:top-24">
-      <h2 id="topic-sidebar-heading" className="text-sm font-semibold text-unh-primary dark:text-white">
-        <Link href={`/topics/${root.slug}`} className={`rounded-sm hover:underline ${focusRing}`}>
-          {root.title}
-        </Link>
-      </h2>
-
-      <ArticleList articles={articlesIn(root.slug)} currentSlug={currentSlug} />
-
-      {groups.map(({ topic, articles }) => (
-        <div key={topic.slug} className="mt-5">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            <Link href={`/topics/${topic.slug}`} className={`rounded-sm hover:text-link hover:underline ${focusRing}`}>
-              {topic.title}
-            </Link>
-          </h3>
-          <ArticleList articles={articles} currentSlug={currentSlug} />
-        </div>
-      ))}
-    </nav>
+    <aside className={styles.sidebar}>
+      <nav aria-labelledby="article-topics">
+        <h2 id="article-topics" className={styles.railHeading}>Topics</h2>
+        <Accordion
+          hideSeparator
+          defaultExpandedKeys={rootSlug ? [rootSlug] : []}
+          className={styles.topicAccordion}
+        >
+          {roots.map((topic) => {
+            const subtopics = topics.filter((child) => child.parentSlug === topic.slug);
+            return (
+              <Accordion.Item key={topic.slug} id={topic.slug}>
+                <Accordion.Heading>
+                  <Accordion.Trigger className={styles.topicTrigger}>
+                    <Accordion.Indicator className={styles.topicChevron} />
+                    {topic.title}
+                  </Accordion.Trigger>
+                </Accordion.Heading>
+                <Accordion.Panel>
+                  <Accordion.Body className={styles.topicPanel}>
+                    <ul className={styles.topicLinks}>
+                      <li>
+                        <Link href={`/topics/${topic.slug}`} className={styles.topicOverview} prefetch={false}>
+                          View topic
+                        </Link>
+                      </li>
+                      <ArticleLinks articles={byTopic.get(topic.slug)} currentSlug={currentSlug} />
+                      {subtopics.map((subtopic) => (
+                        <li key={subtopic.slug} className={styles.subtopic}>
+                          <Link href={`/topics/${subtopic.slug}`} prefetch={false}>{subtopic.title}</Link>
+                          <ul>
+                            <ArticleLinks articles={byTopic.get(subtopic.slug)} currentSlug={currentSlug} />
+                          </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  </Accordion.Body>
+                </Accordion.Panel>
+              </Accordion.Item>
+            );
+          })}
+        </Accordion>
+      </nav>
+    </aside>
   );
 }
 
-function ArticleList({ articles, currentSlug }: { articles: ArticleSummary[]; currentSlug: string }) {
-  if (articles.length === 0) return null;
-
-  return (
-    <ul className="mt-3 space-y-1 border-l-2 border-slate-200 text-sm dark:border-slate-700">
-      {articles.map((a) => {
-        const isCurrent = a.slug === currentSlug;
-        return (
-          <li key={a.slug}>
-            <Link
-              href={`/articles/${a.slug}`}
-              aria-current={isCurrent ? "page" : undefined}
-              className={`-ml-0.5 block border-l-2 py-1 pl-4 ${focusRing} ${
-                isCurrent
-                  ? "border-unh-secondary font-medium text-unh-primary dark:text-white"
-                  : "border-transparent text-slate-600 hover:border-slate-400 hover:text-link dark:text-slate-400 dark:hover:text-white"
-              }`}
-            >
-              {a.title}
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
-  );
+function ArticleLinks({ articles, currentSlug }: { articles?: ArticleSummary[]; currentSlug: string }) {
+  return articles?.map((article) => (
+    <li key={article.slug}>
+      <Link
+        href={`/articles/${article.slug}`}
+        aria-current={article.slug === currentSlug ? "page" : undefined}
+        prefetch={false}
+      >
+        {article.title}
+      </Link>
+    </li>
+  ));
 }

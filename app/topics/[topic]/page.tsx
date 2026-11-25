@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { ChevronRightIcon } from "@heroicons/react/24/outline";
 import { Breadcrumbs } from "@heroui/react";
 import { getArticlesByTopics, type ArticleSummary } from "@/lib/data/articles";
 import { getAllTopics, getSubtopics, getTopicTrail } from "@/lib/data/topics";
+import styles from "../../browse.module.css";
 
 // Prerender every topic and subtopic at build time. New ones are rendered on first visit.
 export async function generateStaticParams() {
@@ -47,64 +49,56 @@ async function TopicContent({ params }: Pick<PageProps<"/topics/[topic]">, "para
         <Breadcrumbs.Item>{topic.title}</Breadcrumbs.Item>
       </Breadcrumbs>
 
-      <div className="mt-6 max-w-prose">
-        <h1 className="font-serif text-4xl tracking-tight text-unh-primary sm:text-5xl dark:text-white">{topic.title}</h1>
-        {topic.description && <p className="mt-4 text-xl text-slate-600 dark:text-slate-300">{topic.description}</p>}
+      <h1 className={styles.heading}>{topic.title}</h1>
+      {topic.description && <p className={styles.intro}>{topic.description}</p>}
 
-        {articles.length === 0 && (
-          <p className="mt-8 border-t border-slate-200 pt-6 text-slate-600 dark:border-slate-700 dark:text-slate-400">
-            No articles in this topic yet.
-          </p>
-        )}
+      {articles.length === 0 && <p className={styles.status}>No articles in this topic yet.</p>}
 
-        <ArticleList articles={ownArticles} />
+      <ArticleList articles={ownArticles} />
 
-        {subtopics.map((s) => {
-          const list = articlesIn(s.slug);
-          return (
-            <section key={s.slug} aria-labelledby={`subtopic-${s.slug}`} className="mt-12">
-              <h2 id={`subtopic-${s.slug}`} className="font-serif text-2xl text-unh-primary dark:text-white">
-                <Link
-                  href={`/topics/${s.slug}`}
-                  className="rounded-sm hover:underline hover:decoration-2 hover:underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                >
-                  {s.title}
-                </Link>
-              </h2>
-              {s.description && <p className="mt-2 text-slate-600 dark:text-slate-300">{s.description}</p>}
-              {list.length > 0 ? (
-                <ArticleList articles={list} />
-              ) : (
-                <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No articles yet.</p>
-              )}
-            </section>
-          );
-        })}
-      </div>
+      {subtopics.map((subtopic) => {
+        const list = articlesIn(subtopic.slug);
+        return (
+          <section key={subtopic.slug} aria-labelledby={`subtopic-${subtopic.slug}`} className={styles.group}>
+            <h2 id={`subtopic-${subtopic.slug}`} className={styles.groupTitle}>
+              <Link href={`/topics/${subtopic.slug}`}>{subtopic.title}</Link>
+            </h2>
+            {subtopic.description && <p className={styles.summary}>{subtopic.description}</p>}
+            {list.length > 0 ? (
+              <ArticleList articles={list} headingLevel="h3" />
+            ) : (
+              <p className={styles.status}>No articles yet.</p>
+            )}
+          </section>
+        );
+      })}
     </>
   );
 }
 
-// Same item style as the All articles page.
-function ArticleList({ articles }: { articles: ArticleSummary[] }) {
+function ArticleList({
+  articles,
+  headingLevel: Heading = "h2",
+}: {
+  articles: ArticleSummary[];
+  headingLevel?: "h2" | "h3";
+}) {
   if (articles.length === 0) return null;
 
   return (
-    <ul className="mt-6 divide-y divide-slate-200 border-t border-slate-200 dark:divide-slate-700 dark:border-slate-700">
-      {articles.map((a) => (
-        <li key={a.slug} className="py-5">
-          <h3 className="text-lg font-semibold text-unh-primary dark:text-white">
-            <Link
-              href={`/articles/${a.slug}`}
-              className="rounded-sm hover:underline hover:decoration-2 hover:underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-            >
-              {a.title}
-            </Link>
-          </h3>
-          {a.summary && <p className="mt-1 text-slate-600 dark:text-slate-300">{a.summary}</p>}
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Last Updated <time dateTime={a.updated.toISOString()}>{formatDate(a.updated)}</time>
-          </p>
+    <ul className={styles.list}>
+      {articles.map((article) => (
+        <li key={article.slug} className={styles.listItem}>
+          <Link href={`/articles/${article.slug}`} className={styles.row}>
+            <div className={styles.rowText}>
+              <Heading className={styles.rowTitle}>{article.title}</Heading>
+              {article.summary && <p className={styles.summary}>{article.summary}</p>}
+              <p className={styles.meta}>
+                Last Updated <time dateTime={article.updated.toISOString()}>{formatDate(article.updated)}</time>
+              </p>
+            </div>
+            <ChevronRightIcon aria-hidden="true" className={styles.arrow} />
+          </Link>
         </li>
       ))}
     </ul>
@@ -113,8 +107,8 @@ function ArticleList({ articles }: { articles: ArticleSummary[] }) {
 
 export default function TopicPage({ params }: PageProps<"/topics/[topic]">) {
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
-      <Suspense fallback={<p className="text-slate-500">Loading topic…</p>}>
+    <main className={`kb-shell ${styles.shell}`}>
+      <Suspense fallback={<p className={styles.status}>Loading topic…</p>}>
         <TopicContent params={params} />
       </Suspense>
     </main>
