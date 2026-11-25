@@ -43,7 +43,7 @@ function NavbarView({ pathname }: { pathname: string | null }) {
               University of New Haven
             </span>
             <span className="block text-[0.8125rem] leading-tight font-bold tracking-tight sm:text-base">
-              IT Knowledge Base
+              Knowledge Base
             </span>
           </span>
         </Link>
@@ -58,7 +58,7 @@ function NavbarView({ pathname }: { pathname: string | null }) {
               Browse guides
             </Link>
             <a href={IT_SUPPORT_URL} className={navLink}>
-              Contact IT <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />
+              Help Desk <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />
             </a>
           </nav>
 

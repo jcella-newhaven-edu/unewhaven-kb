@@ -16,7 +16,12 @@ export default function NewAdminArticle() {
             </AdminHeader>
             {topics.length
               ? <AdminArticleForm topics={topics} />
-              : <p className={styles.empty}>Create a topic before adding an article.</p>}
+              : (
+                <p className={styles.empty}>
+                  <Link href="/admin/topics/new" className={styles.backLink} prefetch={false}>Create a topic</Link>
+                  {" before adding an article."}
+                </p>
+              )}
           </>
         );
       }} />

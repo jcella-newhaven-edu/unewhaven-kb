@@ -104,14 +104,16 @@ docker run --rm -p 3080:3000 --env DATABASE_URL unewhaven-kb
 
 Add `--no-cache-filter builder` to the build command when the database content has changed and you need fresh prerendered pages.
 
-## Article administration
+## Knowledge base administration
 
 Open `/admin` to sign in with Microsoft. The knowledge base creates or updates the account in PostgreSQL at successful sign-in. It identifies each account by its Entra tenant ID and object ID, and reads permissions from the Entra ID token.
 
-| Entra app role value | Article permissions |
+| Entra app role value | Permissions |
 | --- | --- |
-| `KB.Editor` | Create and edit articles, save drafts, publish and unpublish |
-| `KB.Admin` | All editor permissions plus delete |
+| `KB.Editor` | Create and edit articles and topics, change article URLs, save drafts, publish and unpublish |
+| `KB.Admin` | All editor permissions plus delete articles and topics |
+
+Article URLs are set in the editor. When an article URL changes, update links that used its previous URL. Use **Topics** in the admin navigation to manage topics and subtopics. Before deleting a topic, reassign its articles and move or delete its subtopics.
 
 In Microsoft Entra, create a single-tenant app registration. Add a **Web** redirect URI ending in `/api/admin/auth/callback` and create the two app roles above with **Users/Groups** as the allowed member type. Assign users or groups to those roles in the associated enterprise application. For separate dev and prod stacks, register their exact redirect URIs and use the matching origin in each stack. [Microsoft Entra app role setup](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps)
 
