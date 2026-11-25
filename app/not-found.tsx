@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { getRecentArticles } from "@/lib/data/articles";
-import { Alert } from "@heroui/react";
 
 // Shown when a page calls notFound() (e.g. an article that doesn't exist) and for any URL
 // that matches no route. Renders inside the root layout, so the navbar and footer stay.
@@ -19,14 +18,6 @@ export default async function NotFound() {
         It may have been moved or renamed, or the link may be mistyped.
       </p>
 
-        {/* <Alert status="success" className="items-center rounded-none bg-[#e3fcef] shadow-none">
-      <Alert.Indicator/>
-      <Alert.Content>
-        <Alert.Description className="text-base text-foreground">
-          If either your email address or mobile number change, update the information saved in the system.
-        </Alert.Description>
-      </Alert.Content>
-    </Alert> */}
       <div className="mt-8 flex flex-wrap gap-3">
         <Link
           href="/"

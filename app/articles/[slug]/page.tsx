@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { Breadcrumbs } from "@heroui/react";
 import { getArticle, getArticleSlugs, readingMinutes } from "@/lib/data/articles";
 import { getTopicTrail } from "@/lib/data/topics";
-import ArticleBody from "@/components/ArticleBody";
+import ArticleBody, { type ArticleHeading, prepareArticleBody } from "@/components/ArticleBody";
 import TopicSidebar from "@/components/TopicSidebar";
-import { Breadcrumbs } from "@heroui/react";
+import styles from "./article.module.css";
 
 // Prerender every published article at build time. New ones are rendered on first visit.
 export async function generateStaticParams() {
@@ -18,50 +19,70 @@ export async function generateMetadata({ params }: PageProps<"/articles/[slug]">
   return article ? { title: article.title, description: article.summary } : {};
 }
 
-const formatDate = (date: Date) =>
-  new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(date);
+const dateFormat = new Intl.DateTimeFormat("en-US", {
+  month: "short", day: "numeric", year: "numeric", timeZone: "UTC",
+});
 
-// params is read inside <Suspense> so articles that weren't prerendered still get an instant shell.
+function OutlineLinks({ headings }: { headings: ArticleHeading[] }) {
+  return (
+    <ul className={styles.outlineLinks}>
+      {headings.map(({ id, title }) => (
+        <li key={id}><a href={`#${encodeURIComponent(id)}`}>{title}</a></li>
+      ))}
+    </ul>
+  );
+}
+
+// Read params inside Suspense to keep the instant shell for new articles.
 async function ArticleContent({ params }: Pick<PageProps<"/articles/[slug]">, "params">) {
   const { slug } = await params;
   const article = await getArticle(slug);
   if (!article) notFound();
-  const trail = await getTopicTrail(article.topicSlug); // [topic] or [topic, subtopic]
+
+  const trail = await getTopicTrail(article.topicSlug);
+  const { content, headings } = prepareArticleBody(article.body, article.bodyText);
+  const hasOutline = headings.length > 0;
 
   return (
     <>
-      <Breadcrumbs>
+      <Breadcrumbs className={styles.breadcrumbs}>
         <Breadcrumbs.Item href="/">Home</Breadcrumbs.Item>
-        {trail.map((t) => (
-          <Breadcrumbs.Item key={t.slug} href={`/topics/${t.slug}`}>
-            {t.title}
+        {trail.map((topic) => (
+          <Breadcrumbs.Item key={topic.slug} href={`/topics/${topic.slug}`}>
+            {topic.title}
           </Breadcrumbs.Item>
         ))}
         <Breadcrumbs.Item>{article.title}</Breadcrumbs.Item>
       </Breadcrumbs>
 
-      {/* Article first in the page order, so on small screens the sidebar comes after it. */}
-      <div className="mt-6 grid gap-12 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-16">
-        <article className="min-w-0 max-w-prose lg:col-start-2 lg:row-start-1">
-          <h1 className="font-serif text-4xl tracking-tight text-unh-primary sm:text-5xl dark:text-white">{article.title}</h1>
-          {article.summary && <p className="mt-4 text-xl text-slate-600 dark:text-slate-300">{article.summary}</p>}
-          <p className="mt-4 flex flex-wrap items-center gap-x-2 text-sm text-slate-500 dark:text-slate-400">
-            <span>
-                Last Updated <time dateTime={article.updated.toISOString()}>{formatDate(article.updated)}</time>
-            </span>
+      <div className={styles.readingGrid}>
+        <article className={styles.guide}>
+          <h1>{article.title}</h1>
+          {article.summary && <p className={styles.intro}>{article.summary}</p>}
+          {hasOutline && (
+            <details className={styles.mobileOutline}>
+              <summary>On this page</summary>
+              <OutlineLinks headings={headings} />
+            </details>
+          )}
+
+          <div className={styles.prose}>
+            <ArticleBody body={content} />
+          </div>
+          <p className={styles.metadata}>
+            <span>Updated <time dateTime={article.updated.toISOString()}>{dateFormat.format(article.updated)}</time></span>
             <span aria-hidden="true">·</span>
             <span>{readingMinutes(article.bodyText)} min read</span>
-        </p>
-
-
-          <div className="mt-8 border-t border-slate-200 pt-1 text-[1.0625rem] leading-7 dark:border-slate-700">
-            <ArticleBody body={article.body} />
-          </div>
+          </p>
         </article>
 
-        {trail.length > 0 && (
-          <aside className="border-t border-slate-200 pt-8 lg:col-start-1 lg:row-start-1 lg:border-t-0 lg:pt-0 dark:border-slate-700">
-            <TopicSidebar topicSlug={article.topicSlug} currentSlug={article.slug} />
+        <TopicSidebar rootSlug={trail[0]?.slug} currentSlug={slug} />
+        {hasOutline && (
+          <aside className={styles.outline}>
+            <nav aria-labelledby="article-outline">
+              <h2 id="article-outline" className={styles.railHeading}>On this page</h2>
+              <OutlineLinks headings={headings} />
+            </nav>
           </aside>
         )}
       </div>
@@ -71,8 +92,8 @@ async function ArticleContent({ params }: Pick<PageProps<"/articles/[slug]">, "p
 
 export default function ArticlePage({ params }: PageProps<"/articles/[slug]">) {
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
-      <Suspense fallback={<p className="text-slate-500">Loading article…</p>}>
+    <main className={`kb-shell ${styles.page}`}>
+      <Suspense fallback={<p className={styles.loading}>Loading article…</p>}>
         <ArticleContent params={params} />
       </Suspense>
     </main>

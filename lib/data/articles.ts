@@ -34,19 +34,6 @@ export async function getArticle(slug: string) {
   return article ?? null;
 }
 
-/** Published articles in a topic, A to Z. */
-export async function getArticlesByTopic(topicSlug: string) {
-  "use cache";
-  cacheLife("days");
-  cacheTag("articles", `topic:${topicSlug}`);
-
-  return queryRows<ArticleSummary>(
-    `SELECT ${summaryFields} FROM articles
-     WHERE topic_slug = $1 AND published ORDER BY title, slug`,
-    [topicSlug],
-  );
-}
-
 /** Published articles in any of several topics (e.g. a topic and its subtopics), A to Z. */
 export async function getArticlesByTopics(topicSlugs: string[]) {
   "use cache";

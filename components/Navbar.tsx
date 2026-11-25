@@ -1,30 +1,17 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Button, Dropdown } from "@heroui/react";
+import { ArrowUpRightIcon, Bars3Icon, BookOpenIcon } from "@heroicons/react/24/outline";
+import { IT_SUPPORT_URL } from "@/lib/site-links";
 import SearchDialog from "./SearchDialog";
 import ThemeToggle from "./ThemeToggle";
 
-// Edit these to match your pages.
-const SITE_NAME = "Knowledge Base";
-const LINKS = [
-  { href: "/", label: "Home" },
-  { href: "/topics", label: "Topics" },
-  { href: "/articles", label: "Articles" },
-];
+const navLink =
+  "inline-flex items-center gap-1 rounded-sm text-sm font-semibold text-kb-heading underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus";
 
-function isActive(pathname: string | null, href: string): boolean {
-  if (pathname === null) return false;
-  return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
-}
-
-/**
- * The navbar sits in the root layout, but on pages whose URL isn't known until request time
- * (e.g. an article that wasn't prerendered) Cache Components can't read the pathname while
- * prerendering. So the navbar is prerendered with no link highlighted, and the highlighted
- * version streams in once the pathname is known.
- */
 export default function Navbar() {
   return (
     <Suspense fallback={<NavbarView pathname={null} />}>
@@ -38,90 +25,68 @@ function CurrentNavbar() {
 }
 
 function NavbarView({ pathname }: { pathname: string | null }) {
-  const [open, setOpen] = useState(false);
-
-  // Close the mobile menu after navigating, and when Escape is pressed.
-  useEffect(() => setOpen(false), [pathname]);
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  const isBrowsing = pathname?.startsWith("/topics") || pathname?.startsWith("/articles");
 
   return (
-    <header className="sticky top-0 z-50 bg-unh-primary text-white shadow-md shadow-unh-deep/20">
-      <nav aria-label="Main" className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-3 sm:px-6">
+    <header className="sticky top-0 z-40 border-b border-kb-line bg-background/95 backdrop-blur">
+      <div className="kb-shell flex min-h-(--kb-header-height) items-center justify-between gap-2 sm:gap-5">
         <Link
           href="/"
-          className="font-serif text-xl whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-unh-secondary"
+          aria-label="IT Knowledge Base homepage"
+          className="flex shrink-0 items-center gap-2 rounded-lg text-kb-heading focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus sm:gap-3"
         >
-          {SITE_NAME}
+          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-unh-primary text-unh-secondary sm:size-10 sm:rounded-xl">
+            <BookOpenIcon aria-hidden="true" className="size-4.5 sm:size-5.5" />
+          </span>
+          <span className="whitespace-nowrap">
+            <span className="block text-[0.625rem] leading-tight font-semibold text-kb-muted sm:text-[0.6875rem]">
+              University of New Haven
+            </span>
+            <span className="block text-[0.8125rem] leading-tight font-bold tracking-tight sm:text-base">
+              IT Knowledge Base
+            </span>
+          </span>
         </Link>
 
-        <div className="flex items-center gap-3">
-        {/* Desktop links */}
-        <ul className="hidden items-center gap-1 md:flex">
-          {LINKS.map(({ href, label }) => {
-            const active = isActive(pathname, href);
-            return (
-              <li key={href}>
-                <Link
-                  href={href}
-                  aria-current={active ? "page" : undefined}
-                  className={`rounded-md px-3 py-2 font-medium underline-offset-8 transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-unh-secondary ${
-                    active ? "text-white underline decoration-unh-secondary decoration-2" : "text-white/80 hover:text-white"
-                  }`}
-                >
-                  {label}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <nav aria-label="Main navigation" className="mr-4 hidden items-center gap-6 md:flex">
+            <Link
+              href="/topics"
+              aria-current={isBrowsing ? "true" : undefined}
+              className={`${navLink} ${isBrowsing ? "underline" : ""}`}
+            >
+              Browse guides
+            </Link>
+            <a href={IT_SUPPORT_URL} className={navLink}>
+              Contact IT <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />
+            </a>
+          </nav>
 
-        <SearchDialog />
-        <ThemeToggle />
+          <SearchDialog />
+          <ThemeToggle />
 
-        {/* Mobile menu button */}
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          aria-controls="mobile-menu"
-          className="-mr-2 rounded-md p-2 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-unh-secondary md:hidden"
-        >
-          <span className="sr-only">{open ? "Close menu" : "Open menu"}</span>
-          <svg aria-hidden="true" viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            {open ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
-          </svg>
-        </button>
+          <div className="md:hidden">
+            <Dropdown>
+              <Button
+                aria-label="Navigation menu"
+                isIconOnly
+                variant="secondary"
+                size="sm"
+                className="size-8 min-w-8 border border-kb-line bg-kb-panel text-kb-heading data-[hovered=true]:bg-kb-hover sm:size-9 sm:min-w-9"
+              >
+                <Bars3Icon aria-hidden="true" className="size-4.5" />
+              </Button>
+              <Dropdown.Popover placement="bottom end">
+                <Dropdown.Menu aria-label="Main navigation">
+                  <Dropdown.Item href="/topics" id="topics">Browse topics</Dropdown.Item>
+                  <Dropdown.Item href="/articles" id="articles">All guides</Dropdown.Item>
+                  <Dropdown.Item href={IT_SUPPORT_URL} id="contact">Contact IT</Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+          </div>
         </div>
-      </nav>
-
-      {/* Mobile links */}
-      {open && (
-        <ul id="mobile-menu" className="border-t border-white/15 px-4 pb-4 pt-2 md:hidden">
-          {LINKS.map(({ href, label }) => {
-            const active = isActive(pathname, href);
-            return (
-              <li key={href}>
-                <Link
-                  href={href}
-                  aria-current={active ? "page" : undefined}
-                  className={`block rounded-md border-l-4 px-3 py-3 font-medium focus-visible:outline-2 focus-visible:outline-unh-secondary ${
-                    active ? "border-unh-secondary bg-white/10 text-white" : "border-transparent text-white/85 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  {label}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      </div>
     </header>
   );
 }

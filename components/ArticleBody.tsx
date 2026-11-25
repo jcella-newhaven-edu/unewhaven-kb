@@ -1,64 +1,118 @@
+import type { CSSProperties } from "react";
 import type { JSONContent } from "@tiptap/core";
 import { renderJSONContentToReactElement } from "@tiptap/static-renderer/json/react";
 
-// Only allow links to web pages, email and pages on this site. Blocks javascript: and data: URLs.
-const safeHref = (href: unknown) =>
-  typeof href === "string" && /^(https?:|mailto:|\/|#)/i.test(href) ? href : undefined;
+type ArticleMark = NonNullable<JSONContent["marks"]>[number];
+type RendererOptions = Parameters<typeof renderJSONContentToReactElement<ArticleMark, JSONContent>>[0];
 
-// Built once: maps each Tiptap node and mark type to JSX.
-const renderArticle = renderJSONContentToReactElement({
-  nodeMapping: {
-    doc: ({ children }) => <>{children}</>,
-    text: ({ node }) => node.text ?? null,
-    paragraph: ({ children }) => <p className="mt-5">{children}</p>,
-    heading: ({ node, children }) =>
-      node.attrs?.level === 2 ? (
-        <h2 className="mt-12 font-serif text-2xl text-unh-primary sm:text-3xl dark:text-white">{children}</h2>
-      ) : (
-        <h3 className="mt-8 text-lg font-semibold text-unh-primary dark:text-slate-100">{children}</h3>
-      ),
-    bulletList: ({ children }) => <ul className="mt-5 list-disc space-y-2 pl-6 marker:text-link">{children}</ul>,
-    orderedList: ({ node, children }) => (
-      <ol start={node.attrs?.start ?? 1} className="mt-5 list-decimal space-y-2 pl-6 marker:font-semibold marker:text-unh-primary dark:marker:text-unh-secondary">
-        {children}
-      </ol>
-    ),
-    // List items wrap their text in a paragraph; [&>p]:mt-0 stops it adding extra space.
-    listItem: ({ children }) => <li className="[&>p]:mt-0">{children}</li>,
-    codeBlock: ({ children }) => (
-      <pre className="mt-5 overflow-x-auto rounded-lg bg-unh-deep p-4 font-mono text-sm text-slate-100 dark:bg-black/40">
-        <code>{children}</code>
-      </pre>
-    ),
-    blockquote: ({ children }) => (
-      <blockquote className="mt-5 border-l-4 border-unh-tertiary-light pl-4 italic">{children}</blockquote>
-    ),
-    hardBreak: () => <br />,
-    horizontalRule: () => <hr className="my-10 border-slate-200 dark:border-slate-700" />,
-  },
-  markMapping: {
-    bold: ({ children }) => <strong>{children}</strong>,
-    italic: ({ children }) => <em>{children}</em>,
-    underline: ({ children }) => <u>{children}</u>,
-    strike: ({ children }) => <s>{children}</s>,
-    code: ({ children }) => (
-      <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/10">{children}</code>
-    ),
-    link: ({ mark, children }) => (
-      <a
-        href={safeHref(mark.attrs?.href)}
-        className="text-link underline decoration-2 underline-offset-4"
-      >
-        {children}
-      </a>
-    ),
-  },
-  // Anything the editor adds later that isn't mapped above is skipped instead of crashing the page.
-  unhandledNode: () => null,
-  unhandledMark: ({ children }) => <>{children}</>,
-});
+export type ArticleHeading = { id: string; title: string; level: 2 | 3 };
 
-/** Renders an article's Tiptap JSON as HTML on the server. No editor code ships to readers. */
+function safeHref(value: unknown) {
+  if (typeof value !== "string") return undefined;
+  const href = value.trim();
+  return /^(https?:\/\/|mailto:|#|\/(?![/\\]))/i.test(href) ? href : undefined;
+}
+
+const nodeMapping = {
+  doc: ({ children }) => <>{children}</>,
+  text: ({ node }) => node.text ?? null,
+  paragraph: ({ children }) => <p>{children}</p>,
+  heading: ({ node, children }) => {
+    const Heading = node.attrs?.level === 2 ? "h2" : "h3";
+    return <Heading id={node.attrs?.id}>{children}</Heading>;
+  },
+  bulletList: ({ children }) => <ul>{children}</ul>,
+  orderedList: ({ node, children }) => {
+    const value = node.attrs?.start;
+    const start = typeof value === "number" && Number.isInteger(value) ? value : 1;
+    const style = { "--article-step-start": start - 1 } as CSSProperties;
+    return <ol start={start} style={style} role="list">{children}</ol>;
+  },
+  listItem: ({ children }) => <li>{children}</li>,
+  codeBlock: ({ children }) => <pre><code>{children}</code></pre>,
+  blockquote: ({ children }) => <blockquote>{children}</blockquote>,
+  hardBreak: () => <br />,
+  horizontalRule: () => <hr />,
+} satisfies RendererOptions["nodeMapping"];
+
+const markMapping = {
+  bold: ({ children }) => <strong>{children}</strong>,
+  italic: ({ children }) => <em>{children}</em>,
+  underline: ({ children }) => <u>{children}</u>,
+  strike: ({ children }) => <s>{children}</s>,
+  code: ({ children }) => <code>{children}</code>,
+  link: ({ mark, children }) => {
+    const href = safeHref(mark.attrs?.href);
+    return href ? <a href={href}>{children}</a> : <>{children}</>;
+  },
+} satisfies RendererOptions["markMapping"];
+
+const renderArticle = renderJSONContentToReactElement<ArticleMark, JSONContent>({ nodeMapping, markMapping });
+
+function plainText(node: JSONContent): string {
+  if (node.type === "hardBreak") return " ";
+  return node.text ?? node.content?.map(plainText).join("") ?? "";
+}
+
+function headingId(title: string, ids: Set<string>) {
+  const slug = title.normalize("NFKD").toLowerCase()
+    .replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
+  const base = `section-${slug || "heading"}`;
+  let id = base;
+  for (let suffix = 2; ids.has(id); suffix += 1) id = `${base}-${suffix}`;
+  ids.add(id);
+  return id;
+}
+
+/** Prepare a renderable document and use its heading IDs for both outlines. */
+export function prepareArticleBody(body: JSONContent, bodyText: string) {
+  const headings: ArticleHeading[] = [];
+  const ids = new Set<string>();
+  let hasText = false;
+
+  function prepare(node: JSONContent): JSONContent | undefined {
+    if (typeof node?.type !== "string" || !Object.hasOwn(nodeMapping, node.type)) return;
+    const text = typeof node.text === "string" ? node.text : undefined;
+    if (node.type === "text" && text?.trim()) hasText = true;
+    const content = Array.isArray(node.content)
+      ? node.content.map(prepare).filter((child) => child !== undefined)
+      : undefined;
+    const marks = Array.isArray(node.marks)
+      ? node.marks.filter((mark) => typeof mark?.type === "string" && Object.hasOwn(markMapping, mark.type))
+      : undefined;
+    const prepared = { ...node, text, content, marks };
+    if (node.type === "heading") {
+      const title = plainText(prepared).replace(/\s+/g, " ").trim();
+      if (title) {
+        const level = node.attrs?.level === 2 ? 2 : 3;
+        const id = headingId(title, ids);
+        headings.push({ id, title, level });
+        prepared.attrs = { ...node.attrs, id };
+      }
+    }
+    return prepared;
+  }
+
+  const content = prepare(body);
+  if (content && hasText) {
+    const sections = headings.filter((heading) => heading.level === 2);
+    return { content, headings: sections.length ? sections : headings };
+  }
+
+  // Older articles may only have a plain-text copy of their content.
+  return {
+    content: {
+      type: "doc",
+      content: bodyText.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((text) => ({
+        type: "paragraph",
+        content: [{ type: "text", text }],
+      })),
+    },
+    headings: [],
+  };
+}
+
+/** Render the prepared Tiptap document on the server without loading an editor. */
 export default function ArticleBody({ body }: { body: JSONContent }) {
   return renderArticle({ content: body });
 }
