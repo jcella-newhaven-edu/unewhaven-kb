@@ -66,11 +66,34 @@ Compose builds the PostgreSQL image from `db/Dockerfile` with the schema, select
 Start each stack with its matching environment file and project name. Run these commands from a shell without exported database or port settings, since Compose gives shell variables precedence over the environment file.
 
 ```bash
-docker compose --env-file .env.dev -p unewhaven-kb-dev up -d --build
-docker compose --env-file .env.prod -p unewhaven-kb-prod up -d --build
+docker compose --env-file .env.dev -p unewhaven-kb-dev up -d --build --wait
+docker compose --env-file .env.prod -p unewhaven-kb-prod up -d --build --wait
 ```
 
 The app uses host port `APP_PORT`, which defaults to 3080. If you set the project name with `COMPOSE_PROJECT_NAME` instead of `-p`, use that same name in the database hostname in `DATABASE_URL`.
+
+### Nginx Proxy Manager
+
+Attach Nginx Proxy Manager to the same external `proxy` Docker network as the app. For a project named `dev-knowledge-base`, use these settings in its Proxy Host. [Nginx Proxy Manager networking](https://nginxproxymanager.com/advanced-config/)
+
+| Proxy Host setting | Value |
+| --- | --- |
+| Forward Scheme | `http` |
+| Forward Hostname / IP | `dev-knowledge-base-app` |
+| Forward Port | `3000` |
+
+Use `<project>-app` for other project names. Configure public HTTPS in the Proxy Host's SSL tab. If Nginx Proxy Manager runs on a separate Docker host, use the app host's reachable IP and the stack's published `APP_PORT` instead.
+
+Next.js builds its pages before listening, so requests can return 502 during startup. The `--wait` option waits for the Compose health checks to pass. If 502 persists, check the application logs and confirm the proxy can reach the upstream. Set `NPM_CONTAINER` to the name of your Nginx Proxy Manager container.
+
+```bash
+docker logs --tail 80 dev-knowledge-base-nextjs-1
+docker exec "$NPM_CONTAINER" curl --fail --verbose --max-time 5 http://dev-knowledge-base-app:3000/
+```
+
+If the app reports `Ready` and the hostname fails to resolve from the proxy, inspect the `proxy` network to confirm both containers are attached.
+
+### Standalone image
 
 To build a standalone production image, export `DATABASE_URL` for an initialized database reachable during the build and at runtime.
 
