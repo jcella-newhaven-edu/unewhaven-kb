@@ -59,7 +59,9 @@ APP_PORT=3081
 POSTGRES_SEED_FILE=./db/prod-seed.sql
 ```
 
-For production, provide a SQL file at `POSTGRES_SEED_FILE` that loads your content, including at least one topic and one published article for prerendering. Compose applies `db/schema.sql` and the seed when it initializes a new database volume. The default seed is `./db/dev-seed.sql`.
+For production, set `POSTGRES_SEED_FILE` to a SQL file that loads at least one topic and one published article for prerendering. Use a path relative to the repository root and include the file in the Docker build context. For Git-based deployments, include the file in the branch that the deployment checks out. The default seed is `./db/dev-seed.sql`.
+
+Compose builds the PostgreSQL image from `db/Dockerfile` with `db/schema.sql` and the selected seed inside it. PostgreSQL runs both SQL files once, when it initializes a fresh database volume. Rerun the matching `up -d --build` command below to package schema or seed changes for future fresh volumes.
 
 Start each stack with its matching environment file and project name. Run these commands from a shell without exported database or port settings, since Compose gives shell variables precedence over the environment file.
 

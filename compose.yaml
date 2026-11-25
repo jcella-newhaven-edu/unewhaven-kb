@@ -1,6 +1,10 @@
 services:
   unewhaven-kb-db:
-    image: postgres:19-bookworm@sha256:4c736732289da844c2ab892451adc1a6e376e7d0ac54ca9571a2e1cfd14176a1
+    build:
+      context: .
+      dockerfile: db/Dockerfile
+      args:
+        POSTGRES_SEED_FILE: ${POSTGRES_SEED_FILE:-./db/dev-seed.sql}
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB for this stack}
@@ -8,13 +12,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD for this stack}
     volumes:
       - postgres-19-data:/var/lib/postgresql
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - type: bind
-        source: ${POSTGRES_SEED_FILE:-./db/dev-seed.sql}
-        target: /docker-entrypoint-initdb.d/02-content.sql
-        read_only: true
-        bind:
-          create_host_path: false
     networks:
       proxy:
         aliases:
