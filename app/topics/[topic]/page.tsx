@@ -34,7 +34,7 @@ async function TopicContent({ params }: Pick<PageProps<"/topics/[topic]">, "para
   // A subtopic can't have subtopics, so only top-level topics look them up.
   const subtopics = topic.parentSlug === null ? await getSubtopics(topic.slug) : [];
   const articles = await getArticlesByTopics([topic.slug, ...subtopics.map((s) => s.slug)]);
-  const articlesIn = (s: string) => articles.filter((a) => a.topicSlug === s);
+  const articlesIn = (s: string) => articles.filter((a) => a.topicSlugs.includes(s));
   const ownArticles = articlesIn(topic.slug);
 
   return (

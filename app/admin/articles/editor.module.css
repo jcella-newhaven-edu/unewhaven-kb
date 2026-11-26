@@ -1,3 +1,109 @@
+.articleForm {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(15rem, 19rem);
+  align-items: start;
+  gap: 1.25rem;
+  min-inline-size: 0;
+}
+
+.contentPanel,
+.settingsPanel {
+  display: grid;
+  min-inline-size: 0;
+  gap: 1.125rem;
+  padding: clamp(1rem, 2.3vw, 1.5rem);
+  border: 1px solid var(--kb-line);
+  border-radius: 0.875rem;
+  background: var(--background);
+}
+
+.titleInput {
+  min-block-size: 3rem;
+  font-size: 1.125rem;
+  font-weight: 650;
+}
+
+.settingsRail {
+  display: grid;
+  min-inline-size: 0;
+  gap: 1rem;
+}
+
+.settingsPanel {
+  gap: 1rem;
+  padding: 1.125rem;
+  background: var(--kb-panel);
+}
+
+.settingsPanel h2 {
+  color: var(--kb-heading);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.extraTopics {
+  display: grid;
+  min-inline-size: 0;
+  gap: 0.375rem;
+}
+
+.extraTopics legend {
+  padding-block-end: 0.375rem;
+  color: var(--kb-heading);
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.topicChoices {
+  display: grid;
+  max-block-size: 11rem;
+  overflow-y: auto;
+  padding: 0.25rem 0.625rem;
+  border: 1px solid var(--kb-line);
+  border-radius: 0.5rem;
+  background: var(--background);
+}
+
+.topicChoices label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding-block: 0.375rem;
+  color: var(--kb-heading);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.topicChoices label + label {
+  border-block-start: 1px solid var(--kb-line);
+}
+
+.topicChoices input {
+  flex: none;
+  accent-color: var(--accent);
+}
+
+.topicChoices label:has(input:disabled) {
+  color: var(--kb-muted);
+}
+
+.topicChoices input:focus-visible,
+.fileInput:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.actions {
+  padding-inline: 0.125rem;
+}
+
 .hint {
   color: var(--kb-muted);
   font-size: 0.8125rem;
@@ -16,6 +122,16 @@
 .currentUrl > a {
   min-inline-size: 0;
   font-size: 0.875rem;
+}
+
+.slugGroup {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.slugGroup input {
+  min-inline-size: 0;
+  flex: 1;
 }
 
 .group {
@@ -58,6 +174,191 @@
   inline-size: 1rem;
   block-size: 1rem;
   flex: none;
+}
+
+.editor {
+  background: var(--background);
+}
+
+.editorSurface :global(.tiptap) {
+  min-block-size: 22rem;
+  padding: 1rem;
+  color: var(--kb-heading);
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.editorSurface :global(.tiptap):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.editorSurface :is(h2, h3) {
+  margin-block: 1rem 0.375rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.editorSurface h2 {
+  font-size: 1.375rem;
+}
+
+.editorSurface h3 {
+  font-size: 1.125rem;
+}
+
+.editorSurface p + p {
+  margin-block-start: 0.5rem;
+}
+
+.editorSurface :is(ul, ol) {
+  margin-block: 0.375rem;
+  padding-inline-start: 1.5rem;
+}
+
+.editorSurface ul {
+  list-style-type: disc;
+}
+
+.editorSurface ol {
+  list-style-type: decimal;
+}
+
+.editorSurface blockquote {
+  padding-inline-start: 0.8rem;
+  border-inline-start: 3px solid var(--kb-line);
+}
+
+.editorSurface pre {
+  overflow-x: auto;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--kb-panel);
+}
+
+.editorSurface a {
+  color: var(--link);
+  text-decoration: underline;
+}
+
+.imagePanel {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.875rem;
+  border-block-end: 1px solid var(--kb-line);
+  background: var(--kb-panel);
+}
+
+.imagePanel label,
+.nodeControls label {
+  color: var(--kb-heading);
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.imageModes,
+.panelActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.panelActions {
+  margin-block-start: 0.125rem;
+}
+
+.fileInput {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  color: var(--kb-heading);
+  font-size: 0.8125rem;
+}
+
+.fileInput::file-selector-button {
+  min-block-size: 2.25rem;
+  margin-inline-end: 0.5rem;
+  padding-inline: 0.625rem;
+  border: 1px solid var(--kb-line);
+  border-radius: 0.375rem;
+  background: var(--background);
+  color: var(--kb-heading);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.editorImage,
+.tabGroup {
+  margin-block: 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--kb-line);
+  border-radius: 0.625rem;
+  background: var(--kb-panel);
+}
+
+.editorImage[data-selected] {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.editorImage img {
+  display: block;
+  inline-size: auto;
+  max-inline-size: 100%;
+  max-block-size: 24rem;
+  margin-inline: auto;
+  object-fit: contain;
+}
+
+.nodeControls,
+.tabGroupHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  color: var(--kb-heading);
+  font-size: 0.8125rem;
+}
+
+.nodeControls > input {
+  flex: 1;
+  min-inline-size: 8rem;
+}
+
+.tabGroupHeader > span {
+  margin-inline-end: auto;
+  font-weight: 700;
+}
+
+.tabPanels {
+  padding: 0 0.625rem 0.625rem;
+}
+
+.editorTab {
+  overflow: hidden;
+  border: 1px solid var(--kb-line);
+  border-radius: 0.5rem;
+  background: var(--background);
+}
+
+.editorTab + .editorTab {
+  margin-block-start: 0.5rem;
+}
+
+.editorTabContent {
+  min-block-size: 2.75rem;
+  padding: 0.375rem 0.75rem 0.625rem;
+  border-block-start: 1px solid var(--kb-line);
+}
+
+@media (max-width: 58rem) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .editorSurface :global(.tiptap) {
+    min-block-size: 15rem;
+  }
 }
 
 @media (max-width: 32rem) {

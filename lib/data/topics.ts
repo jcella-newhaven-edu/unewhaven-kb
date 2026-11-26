@@ -49,8 +49,17 @@ export async function getTopics(): Promise<TopicTree[]> {
   const [all, counts] = await Promise.all([
     getAllTopics(),
     queryRows<{ topicSlug: string; articleCount: number }>(
-      `SELECT topic_slug AS "topicSlug", count(*)::integer AS "articleCount"
-       FROM articles WHERE published GROUP BY topic_slug`,
+      `WITH published_memberships AS (
+         SELECT m.article_slug, m.topic_slug FROM article_topic_memberships m
+         JOIN articles a ON a.slug = m.article_slug WHERE a.published
+       ), grouped_memberships AS (
+         SELECT article_slug, topic_slug FROM published_memberships
+         UNION
+         SELECT m.article_slug, t.parent_slug FROM published_memberships m
+         JOIN topics t ON t.slug = m.topic_slug WHERE NULLIF(t.parent_slug, '') IS NOT NULL
+       )
+       SELECT topic_slug AS "topicSlug", count(*)::integer AS "articleCount"
+       FROM grouped_memberships GROUP BY topic_slug`,
     ),
   ]);
 
@@ -61,8 +70,7 @@ export async function getTopics(): Promise<TopicTree[]> {
     .filter((t) => t.parentSlug === null)
     .map((parent) => {
       const subtopics = all.filter((t) => t.parentSlug === parent.slug).map(withCount);
-      const own = withCount(parent);
-      return { ...own, articleCount: own.articleCount + subtopics.reduce((n, s) => n + s.articleCount, 0), subtopics };
+      return { ...withCount(parent), subtopics };
     });
 }
 

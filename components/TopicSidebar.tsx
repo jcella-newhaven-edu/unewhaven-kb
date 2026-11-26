@@ -18,9 +18,11 @@ export default async function TopicSidebar({
 
   const byTopic = new Map<string, ArticleSummary[]>();
   for (const article of articles) {
-    const group = byTopic.get(article.topicSlug) ?? [];
-    group.push(article);
-    byTopic.set(article.topicSlug, group);
+    for (const slug of article.topicSlugs) {
+      const group = byTopic.get(slug) ?? [];
+      group.push(article);
+      byTopic.set(slug, group);
+    }
   }
 
   return (

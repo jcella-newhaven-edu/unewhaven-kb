@@ -7,6 +7,10 @@ import { queryRows } from "@/lib/postgres";
 
 export type AdminArticle = Article & {
   topicTitle: string;
+  topics: { slug: string; title: string }[];
+  authorName: string | null;
+  lastEditorName: string | null;
+  publishedAt: Date | null;
   updatedToken: string;
 };
 export type AdminArticleSummary = Omit<AdminArticle, "body" | "bodyText">;
@@ -14,9 +18,23 @@ export type AdminTopic = { slug: string; title: string; parentSlug: string | nul
 
 const fields = `
   a.slug, a.title, a.summary, a.topic_slug AS "topicSlug", COALESCE(t.title, a.topic_slug) AS "topicTitle",
-  a.published, a.updated, to_char(a.updated AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "updatedToken"
+  assigned.slugs AS "topicSlugs", assigned.topics, creator.display_name AS "authorName",
+  editor.display_name AS "lastEditorName", a.published_at AS "publishedAt", a.published, a.updated,
+  to_char(a.updated AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "updatedToken"
 `;
-const from = 'FROM articles a LEFT JOIN topics t ON a.topic_slug = t.slug';
+const from = `
+  FROM articles a
+  LEFT JOIN topics t ON a.topic_slug = t.slug
+  LEFT JOIN admin_accounts creator ON a.author_id = creator.id
+  LEFT JOIN admin_accounts editor ON a.last_editor_id = editor.id
+  LEFT JOIN LATERAL (
+    SELECT array_agg(m.topic_slug ORDER BY (m.topic_slug = a.topic_slug) DESC, m.topic_slug) AS slugs,
+           jsonb_agg(jsonb_build_object('slug', m.topic_slug, 'title', COALESCE(label.title, m.topic_slug))
+                     ORDER BY (m.topic_slug = a.topic_slug) DESC, m.topic_slug) AS topics
+    FROM article_topic_memberships m LEFT JOIN topics label ON label.slug = m.topic_slug
+    WHERE m.article_slug = a.slug
+  ) assigned ON true
+`;
 
 async function requireEditorialAccess() {
   const session = await getAdminSession();

@@ -1,8 +1,7 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Button } from "@heroui/react";
 import { listManagedTopics } from "@/lib/admin/topics";
-import { AdminGate, AdminHeader, AdminPage } from "../../shell";
+import { AdminBackLink, AdminGate, AdminHeader, AdminPage } from "../../shell";
 import styles from "../../admin.module.css";
 import topicStyles from "../topics.module.css";
 import TopicForm from "../editor";
@@ -32,28 +31,41 @@ export default function EditAdminTopic({
         return (
           <>
             <AdminHeader title="Edit topic" session={session} section="topics">
-              <Link href="/admin/topics" className={styles.backLink} prefetch={false}>Back to topics</Link>
+              <AdminBackLink section="topics" />
             </AdminHeader>
             {query.saved === "1" && <p className={styles.notice} role="status">Topic saved.</p>}
-            <TopicForm
-              key={`${topic.slug}:${topic.updatedToken}`}
-              topic={topic}
-              parentTopics={hasChildren ? [] : topics.filter((candidate) => !candidate.parentSlug && candidate.slug !== topic.slug)}
-            />
-            {session.role === "admin" && (
-              deleteBlocker ? (
-                <div className={`${styles.deleteArea} ${topicStyles.blockedDelete}`}>
-                  <Button type="button" variant="danger-soft" aria-describedby="topic-delete-blocker" isDisabled>
-                    Delete topic
-                  </Button>
-                  <p id="topic-delete-blocker" className={topicStyles.muted}>
-                    Move or remove {deleteBlocker} before deleting this topic.{hasArticles && " Drafts count as articles."}
-                  </p>
-                </div>
-              ) : (
-                <DeleteTopic slug={topic.slug} title={topic.title} updatedToken={topic.updatedToken} />
-              )
-            )}
+            <div className={topicStyles.editLayout}>
+              <TopicForm
+                key={`${topic.slug}:${topic.updatedToken}`}
+                topic={topic}
+                parentTopics={hasChildren ? [] : topics.filter((candidate) => !candidate.parentSlug && candidate.slug !== topic.slug)}
+              />
+              <aside className={styles.detailsPanel} aria-label="Topic usage">
+                <h2>Topic usage</h2>
+                <dl>
+                  <div>
+                    <dt>Articles assigned</dt>
+                    <dd>{topic.articleCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Subtopics</dt>
+                    <dd>{topic.childCount}</dd>
+                  </div>
+                </dl>
+                {session.role === "admin" && (
+                  deleteBlocker ? (
+                    <div className={`${styles.deleteArea} ${topicStyles.blockedDelete}`}>
+                      <Button type="button" variant="danger-soft" isDisabled>Delete topic</Button>
+                      <p className={topicStyles.muted}>
+                        Move or remove {deleteBlocker} before deleting this topic.{hasArticles && " Drafts count as articles."}
+                      </p>
+                    </div>
+                  ) : (
+                    <DeleteTopic slug={topic.slug} title={topic.title} updatedToken={topic.updatedToken} />
+                  )
+                )}
+              </aside>
+            </div>
           </>
         );
       }} />

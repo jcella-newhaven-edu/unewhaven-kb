@@ -11,8 +11,9 @@ import {
   ShieldCheckIcon,
   WifiIcon,
 } from "@heroicons/react/24/outline";
-import { Button, Card } from "@heroui/react";
+import { Card } from "@heroui/react";
 import Link from "next/link";
+import { SearchTrigger } from "@/components/SearchDialog";
 import { getArticleSlugs, getRecentArticles } from "@/lib/data/articles";
 import { getAllTopics, getTopics } from "@/lib/data/topics";
 import { IT_SUPPORT_URL } from "@/lib/site-links";
@@ -78,22 +79,11 @@ export default async function Home() {
           <div className={styles.heroContent}>
             <h1 id="home-heading">Find your IT answers.</h1>
             <p>Guides for your University account, campus Wi-Fi, printing, and classroom technology.</p>
-            <form action="/search" method="get" role="search" aria-label="Knowledge base" className={styles.heroSearch}>
+            <SearchTrigger aria-label="Search the knowledge base" className={styles.heroSearch}>
               <MagnifyingGlassIcon aria-hidden="true" className={styles.searchIcon} />
-              <label htmlFor="home-search-query" className="sr-only">
-                Search the knowledge base
-              </label>
-              <input
-                id="home-search-query"
-                name="q"
-                type="search"
-                placeholder="Search by task, service, or error"
-                autoComplete="off"
-                maxLength={100}
-                required
-              />
-              <Button type="submit" variant="primary" className={styles.searchButton}>Search</Button>
-            </form>
+              <span className={styles.searchPrompt}>Search by task, service, or error</span>
+              <span className={styles.searchButton} aria-hidden="true">Search</span>
+            </SearchTrigger>
           </div>
           <div className={styles.heroArt} aria-hidden="true">
             <div className={styles.artOrbit} />

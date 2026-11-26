@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { listManagedTopics } from "@/lib/admin/topics";
-import { AdminGate, AdminHeader, AdminPage } from "../shell";
+import { AdminCreateLink, AdminGate, AdminHeader, AdminPage } from "../shell";
 import styles from "../admin.module.css";
 import topicStyles from "./topics.module.css";
 
@@ -16,28 +16,44 @@ export default function AdminTopics({
 
         return (
           <>
-            <AdminHeader title="Topic administration" session={session} section="topics" />
+            <AdminHeader title="Topics" session={session} section="topics" actions={<AdminCreateLink section="topics" />} />
             {query.deleted === "1" && <p className={styles.notice} role="status">Topic deleted.</p>}
-            <div className={styles.listControls}>
-              <Link href="/admin/topics/new" className={styles.primaryLink} prefetch={false}>New topic</Link>
-            </div>
 
-            {topics.length ? (
-              <ul className={styles.articleList} aria-label="Topics">
-                {topics.map((topic) => (
-                  <li key={topic.slug} className={`${styles.articleRow} ${topicStyles.row}`}>
-                    <div className={styles.articleDetails}>
-                      <Link href={`/admin/topics/${encodeURIComponent(topic.slug)}`} prefetch={false}>{topic.title}</Link>
-                      <span>{topic.parentSlug ? `Subtopic of ${topic.parentTitle || topic.parentSlug}` : "Top-level topic"}</span>
-                    </div>
-                    <span className={topicStyles.muted}>{topic.articleCount} {topic.articleCount === 1 ? "article" : "articles"}</span>
-                    <span className={topicStyles.muted}>{topic.childCount} {topic.childCount === 1 ? "subtopic" : "subtopics"}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className={styles.empty}>No topics yet.</p>
-            )}
+            <div className={styles.directory}>
+              {topics.length ? (
+                <table className={`${styles.table} ${topicStyles.table}`} aria-label="Topics">
+                  <thead>
+                    <tr>
+                      <th scope="col">Topic</th>
+                      <th scope="col">Parent topic</th>
+                      <th scope="col">Articles</th>
+                      <th scope="col">Subtopics</th>
+                      <th scope="col">Sort order</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topics.map((topic) => (
+                      <tr key={topic.slug}>
+                        <th scope="row">
+                          <div className={styles.rowIdentity}>
+                            <Link href={`/admin/topics/${encodeURIComponent(topic.slug)}`} prefetch={false}>{topic.title}</Link>
+                            {topic.description && <span className={styles.rowDetail}>{topic.description}</span>}
+                          </div>
+                        </th>
+                        <td data-label="Parent topic">
+                          {topic.parentSlug ? topic.parentTitle || topic.parentSlug : <span className={styles.rowDetail}>Top level</span>}
+                        </td>
+                        <td data-label="Articles">{topic.articleCount}</td>
+                        <td data-label="Subtopics">{topic.childCount}</td>
+                        <td data-label="Sort order">{topic.sortOrder}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className={styles.emptyResults}>No topics yet.</p>
+              )}
+            </div>
           </>
         );
       }} />

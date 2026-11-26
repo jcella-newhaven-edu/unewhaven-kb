@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Button, Dropdown } from "@heroui/react";
 import { ArrowUpRightIcon, Bars3Icon, BookOpenIcon } from "@heroicons/react/24/outline";
 import { IT_SUPPORT_URL } from "@/lib/site-links";
-import SearchDialog from "./SearchDialog";
+import { NavbarSearchTrigger } from "./SearchDialog";
 import ThemeToggle from "./ThemeToggle";
 
 const navLink =
@@ -62,7 +62,7 @@ function NavbarView({ pathname }: { pathname: string | null }) {
             </a>
           </nav>
 
-          <SearchDialog />
+          <NavbarSearchTrigger />
           <ThemeToggle />
 
           <div className="md:hidden">

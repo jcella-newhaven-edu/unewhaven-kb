@@ -23,7 +23,7 @@
   --color-unh-text: #333333;
   --color-unh-light-gray: #f2f2f2;
   --color-unh-border: #d4d4d4;
-  --color-unh-deep: #091b2d;            /* dark-mode page background (newhaven.edu has no dark mode) */
+  --color-unh-deep: #171719;            /* dark-mode page background (newhaven.edu has no dark mode) */
 }
 
 /* HeroUI and the documentation layout share the UNH palette. */
@@ -51,21 +51,105 @@
 .dark {
   color-scheme: dark;
   --background: var(--color-unh-deep);
-  --foreground: oklch(92.9% 0.013 255.508);
-  --surface: var(--color-unh-primary);
+  --foreground: #ecebef;
+  --surface: #222225;
   --accent: var(--color-unh-secondary);
   --accent-foreground: var(--color-unh-primary);
   --focus: var(--color-unh-secondary);
   --link: var(--color-unh-tertiary-light);
-  --border: oklch(37.2% 0.044 257.287);
+  --border: #414145;
 
-  --kb-heading: #f1f5fc;
-  --kb-muted: #b9c7da;
-  --kb-line: #2e4360;
-  --kb-panel: #142a43;
-  --kb-hover: #1d3756;
-  --kb-highlight: #223d60;
-  --kb-hero-start: #10243e;
+  --kb-heading: #f4f3f5;
+  --kb-muted: #bfbec5;
+  --kb-line: #39393e;
+  --kb-panel: #222225;
+  --kb-hover: #2c2c30;
+  --kb-highlight: #34353b;
+  --kb-hero-start: #232328;
+  --kb-hero-end: #303139;
+}
+
+/* Inherited colors can interpolate together without a transition on every element. */
+@property --background {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ffffff;
+}
+
+@property --foreground {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #333333;
+}
+
+@property --surface {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ffffff;
+}
+
+@property --border {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #d4d4d4;
+}
+
+@property --kb-heading {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1c2b48;
+}
+
+@property --kb-muted {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #526078;
+}
+
+@property --kb-line {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #dbe2ec;
+}
+
+@property --kb-panel {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #f2f5fa;
+}
+
+@property --kb-hover {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #e9eef6;
+}
+
+@property --kb-highlight {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #eaf0fb;
+}
+
+@property --kb-hero-start {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1c2b48;
+}
+
+@property --kb-hero-end {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #233b60;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html[data-theme-transition] {
+    transition-property:
+      --background, --foreground, --surface, --border, --kb-heading, --kb-muted,
+      --kb-line, --kb-panel, --kb-hover, --kb-highlight, --kb-hero-start, --kb-hero-end;
+    transition-duration: 260ms;
+    transition-timing-function: ease-in-out;
+  }
 }
 
 /* Use UNH's Avenir when installed and the locally served preview font otherwise. */

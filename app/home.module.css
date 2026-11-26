@@ -41,6 +41,8 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  width: 100%;
+  height: auto;
   min-height: 3.8125rem;
   max-width: 33.4375rem;
   margin-top: 1.625rem;
@@ -50,9 +52,11 @@
   background: white;
   color: #14243e;
   color-scheme: light;
+  text-align: start;
 }
 
-.heroSearch:focus-within {
+.heroSearch:focus-visible,
+.heroSearch[data-focus-visible] {
   outline: 3px solid var(--color-unh-secondary);
   outline-offset: 4px;
 }
@@ -64,24 +68,21 @@
   color: #496184;
 }
 
-.heroSearch input {
+.searchPrompt {
   flex: 1;
   min-width: 0;
-  padding: 0.5rem 0;
-  border: 0;
-  outline: none;
-  background: transparent;
-  color: inherit;
-  font-size: 0.9375rem;
-}
-
-.heroSearch input::placeholder {
+  overflow: hidden;
   color: #566783;
-  opacity: 1;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .searchButton {
+  display: grid;
   flex: none;
+  place-items: center;
   min-height: 2.625rem;
   padding-inline: 1.0625rem;
   border-radius: 0.625rem;
@@ -90,8 +91,8 @@
   font-weight: 700;
 }
 
-.searchButton:hover,
-.searchButton[data-hovered] {
+.heroSearch:hover .searchButton,
+.heroSearch[data-hovered] .searchButton {
   background: #ffda68;
 }
 
@@ -516,11 +517,7 @@
     padding: 0.3125rem 0.3125rem 0.3125rem 0.625rem;
   }
 
-  .heroSearch input {
-    font-size: 1rem;
-  }
-
-  .heroSearch input::placeholder,
+  .searchPrompt,
   .searchButton {
     font-size: 0.8125rem;
   }

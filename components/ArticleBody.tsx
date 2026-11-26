@@ -1,6 +1,9 @@
-import type { CSSProperties } from "react";
+import { Children, type CSSProperties } from "react";
 import type { JSONContent } from "@tiptap/core";
 import { renderJSONContentToReactElement } from "@tiptap/static-renderer/json/react";
+import { Tabs } from "@heroui/react";
+import { validArticleImageSrc } from "@/lib/article-media";
+import styles from "./article-body.module.css";
 
 type ArticleMark = NonNullable<JSONContent["marks"]>[number];
 type RendererOptions = Parameters<typeof renderJSONContentToReactElement<ArticleMark, JSONContent>>[0];
@@ -33,6 +36,36 @@ const nodeMapping = {
   blockquote: ({ children }) => <blockquote>{children}</blockquote>,
   hardBreak: () => <br />,
   horizontalRule: () => <hr />,
+  image: ({ node }) => {
+    const { src, alt } = node.attrs ?? {};
+    if (!validArticleImageSrc(src)) return null;
+    // Images can come from editor-selected HTTPS hosts or the protected local media route.
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img className={styles.image} src={src} alt={typeof alt === "string" ? alt : ""} loading="lazy" decoding="async" referrerPolicy="no-referrer" />;
+  },
+  articleTabs: ({ node, children }) => {
+    if (!node.content?.length) return null;
+    const panels = Children.toArray(children);
+    const tabs = node.content.map((tab, index) => ({
+      id: `tab-${index}`,
+      label: typeof tab.attrs?.label === "string" ? tab.attrs.label : `Tab ${index + 1}`,
+    }));
+    return (
+      <Tabs className={styles.tabs} variant="secondary" defaultSelectedKey={tabs[0].id}>
+        <Tabs.ListContainer className={styles.list}>
+          <Tabs.List aria-label="Article tabs">
+            {tabs.map(({ id, label }) => (
+              <Tabs.Tab id={id} key={id}>{label}<Tabs.Indicator /></Tabs.Tab>
+            ))}
+          </Tabs.List>
+        </Tabs.ListContainer>
+        {tabs.map(({ id }, index) => (
+          <Tabs.Panel id={id} key={id} className={styles.panel}>{panels[index]}</Tabs.Panel>
+        ))}
+      </Tabs>
+    );
+  },
+  articleTab: ({ children }) => <>{children}</>,
 } satisfies RendererOptions["nodeMapping"];
 
 const markMapping = {
@@ -68,20 +101,21 @@ function headingId(title: string, ids: Set<string>) {
 export function prepareArticleBody(body: JSONContent, bodyText: string) {
   const headings: ArticleHeading[] = [];
   const ids = new Set<string>();
-  let hasText = false;
+  let hasContent = false;
 
-  function prepare(node: JSONContent): JSONContent | undefined {
+  function prepare(node: JSONContent, inTab = false): JSONContent | undefined {
     if (typeof node?.type !== "string" || !Object.hasOwn(nodeMapping, node.type)) return;
     const text = typeof node.text === "string" ? node.text : undefined;
-    if (node.type === "text" && text?.trim()) hasText = true;
+    if ((node.type === "text" && text?.trim()) || (node.type === "image" && validArticleImageSrc(node.attrs?.src))
+      || (node.type === "articleTabs" && node.content?.length)) hasContent = true;
     const content = Array.isArray(node.content)
-      ? node.content.map(prepare).filter((child) => child !== undefined)
+      ? node.content.map((child) => prepare(child, inTab || node.type === "articleTabs")).filter((child) => child !== undefined)
       : undefined;
     const marks = Array.isArray(node.marks)
       ? node.marks.filter((mark) => typeof mark?.type === "string" && Object.hasOwn(markMapping, mark.type))
       : undefined;
     const prepared = { ...node, text, content, marks };
-    if (node.type === "heading") {
+    if (node.type === "heading" && !inTab) {
       const title = plainText(prepared).replace(/\s+/g, " ").trim();
       if (title) {
         const level = node.attrs?.level === 2 ? 2 : 3;
@@ -94,7 +128,7 @@ export function prepareArticleBody(body: JSONContent, bodyText: string) {
   }
 
   const content = prepare(body);
-  if (content && hasText) {
+  if (content && hasContent) {
     const sections = headings.filter((heading) => heading.level === 2);
     return { content, headings: sections.length ? sections : headings };
   }

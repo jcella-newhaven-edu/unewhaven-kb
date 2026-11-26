@@ -1,4 +1,5 @@
 import type { JSONContent } from "@tiptap/core";
+import { articleImageAltMaxLength, validArticleImageSrc } from "@/lib/article-media";
 
 export type ArticleActionState = {
   error?: string;
@@ -13,13 +14,17 @@ export type ArticleInput = {
   title: string;
   summary: string;
   topicSlug: string;
+  topicSlugs: string[];
   published: boolean;
   content: ArticleBody | null;
 };
 
 const NEW_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const VERSION = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
-const BLOCKS = ["paragraph", "heading", "bulletList", "orderedList", "blockquote", "codeBlock", "horizontalRule"];
+const BLOCKS = [
+  "paragraph", "heading", "bulletList", "orderedList", "blockquote", "codeBlock", "horizontalRule",
+  "image", "articleTabs",
+];
 const INLINE = ["text", "hardBreak"];
 const CHILDREN: Record<string, string[]> = {
   doc: BLOCKS,
@@ -30,12 +35,15 @@ const CHILDREN: Record<string, string[]> = {
   listItem: BLOCKS,
   blockquote: BLOCKS,
   codeBlock: ["text"],
+  articleTabs: ["articleTab"],
+  articleTab: BLOCKS,
+  image: [],
   horizontalRule: [],
   hardBreak: [],
   text: [],
 };
 const MARKS = new Set(["bold", "italic", "underline", "strike", "code", "link"]);
-const TEXT_BLOCKS = new Set(["doc", "listItem", "bulletList", "orderedList", "blockquote"]);
+const TEXT_BLOCKS = new Set(["doc", "listItem", "bulletList", "orderedList", "blockquote", "articleTabs", "articleTab"]);
 
 function formString(form: FormData, name: string): string | null {
   const fields = form.getAll(name);
@@ -75,6 +83,8 @@ export function validateArticle(form: FormData, originalSlug?: string): Validati
   const title = formString(form, "title")?.trim() ?? "";
   const summary = formString(form, "summary")?.trim();
   const topicSlug = formString(form, "topicSlug") ?? "";
+  const additional = form.getAll("additionalTopicSlug");
+  const additionalTopics = additional.filter((value): value is string => typeof value === "string" && validTopicSlug(value));
   const published = formString(form, "published");
   const fieldErrors: Record<string, string> = {};
 
@@ -91,8 +101,13 @@ export function validateArticle(form: FormData, originalSlug?: string): Validati
   if (summary === undefined || summary.length > 500 || !summary.isWellFormed() || summary.includes("\0")) {
     fieldErrors.summary = "Use 500 characters or fewer for the summary.";
   }
-  if (topicSlug.length === 0 || topicSlug.length > 200 || !topicSlug.isWellFormed() || topicSlug.includes("\0")) {
+  if (!validTopicSlug(topicSlug)) {
     fieldErrors.topicSlug = "Choose an existing topic.";
+  }
+  if (additional.length > 99 || additional.length !== additionalTopics.length) {
+    fieldErrors.additionalTopicSlug = "Choose up to 99 existing additional topics.";
+  } else if (additionalTopics.includes(topicSlug) || new Set(additionalTopics).size !== additionalTopics.length) {
+    fieldErrors.additionalTopicSlug = "Choose each topic only once.";
   }
   if (published !== "true" && published !== "false") {
     fieldErrors.published = "Choose Draft or Published.";
@@ -109,7 +124,11 @@ export function validateArticle(form: FormData, originalSlug?: string): Validati
   }
 
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
-  return { data: { slug, title, summary: summary ?? "", topicSlug, published: published === "true", content } };
+  return { data: { slug, title, summary: summary ?? "", topicSlug, topicSlugs: [topicSlug, ...additionalTopics], published: published === "true", content } };
+}
+
+function validTopicSlug(value: string) {
+  return value.length > 0 && value.length <= 200 && value.isWellFormed() && !value.includes("\0");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -197,6 +216,26 @@ export function parseArticleBody(raw: string | null): ArticleBody {
     if (type === "codeBlock" && typeof attrs.language === "string" && /^[\w+-]{1,40}$/.test(attrs.language)) {
       node.attrs = { language: attrs.language };
     }
+    if (type === "image") {
+      const src = typeof attrs.src === "string" ? attrs.src.trim() : null;
+      const alt = attrs.alt ?? "";
+      if (!validArticleImageSrc(src)) throw new Error("Use an HTTPS or site-relative image URL.");
+      if (typeof alt !== "string" || alt.length > articleImageAltMaxLength || !alt.isWellFormed() || hasControlCharacter(alt)) {
+        throw new Error(`Use up to ${articleImageAltMaxLength} characters for image descriptions.`);
+      }
+      node.attrs = { src, alt: alt.trim() };
+    }
+    if (type === "articleTabs" && (!node.content || node.content.length < 2 || node.content.length > 8)) {
+      throw new Error("Use between two and eight tabs in each tab group.");
+    }
+    if (type === "articleTab") {
+      const label = typeof attrs.label === "string" ? attrs.label.trim() : "";
+      if (!label || label.length > 80 || !label.isWellFormed() || hasControlCharacter(label)) {
+        throw new Error("Enter a tab label between 1 and 80 characters.");
+      }
+      if (!node.content?.length) throw new Error("Include a paragraph or another block in each tab.");
+      node.attrs = { label };
+    }
     if (type === "listItem" && node.content?.[0]?.type !== "paragraph") {
       throw new Error("The article body contains an invalid list item.");
     }
@@ -208,8 +247,10 @@ export function parseArticleBody(raw: string | null): ArticleBody {
 
   function extractText(node: JSONContent): string {
     if (node.type === "hardBreak") return "\n";
+    if (node.type === "image") return node.attrs?.alt ?? "";
     const separator = TEXT_BLOCKS.has(node.type ?? "") ? "\n" : "";
-    return node.text ?? node.content?.map(extractText).join(separator) ?? "";
+    const content = node.text ?? node.content?.map(extractText).join(separator) ?? "";
+    return node.type === "articleTab" ? `${node.attrs?.label}\n${content}` : content;
   }
 
   const body = readNode(document, ["doc"], 0);
