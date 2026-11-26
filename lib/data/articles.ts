@@ -8,6 +8,7 @@ export type Article = {
   title: string;
   summary: string;
   topicSlug: string;
+  topicSlugs: string[];
   body: JSONContent;
   bodyText: string;
   published: boolean;
@@ -17,7 +18,9 @@ export type Article = {
 // What lists need: everything except the body.
 export type ArticleSummary = Omit<Article, "body" | "bodyText" | "published">;
 
-const summaryFields = 'slug, title, summary, topic_slug AS "topicSlug", updated';
+const summaryFields = `a.slug, a.title, a.summary, a.topic_slug AS "topicSlug", a.updated,
+  ARRAY(SELECT m.topic_slug FROM article_topic_memberships m WHERE m.article_slug = a.slug
+        ORDER BY (m.topic_slug = a.topic_slug) DESC, m.topic_slug) AS "topicSlugs"`;
 
 /** One published article, or null if it doesn't exist. */
 export async function getArticle(slug: string) {
@@ -27,8 +30,8 @@ export async function getArticle(slug: string) {
   cacheTag("articles", `article:${slug}`);
 
   const [article] = await queryRows<Article>(
-    `SELECT ${summaryFields}, body, body_text AS "bodyText", published
-     FROM articles WHERE slug = $1 AND published`,
+    `SELECT ${summaryFields}, a.body, a.body_text AS "bodyText", a.published
+     FROM articles a WHERE a.slug = $1 AND a.published`,
     [slug],
   );
   return article ?? null;
@@ -41,8 +44,10 @@ export async function getArticlesByTopics(topicSlugs: string[]) {
   cacheTag("articles", ...topicSlugs.map((s) => `topic:${s}`));
 
   return queryRows<ArticleSummary>(
-    `SELECT ${summaryFields} FROM articles
-     WHERE topic_slug = ANY($1::text[]) AND published ORDER BY title, slug`,
+    `SELECT ${summaryFields} FROM articles a
+     WHERE a.published AND EXISTS (
+       SELECT 1 FROM article_topic_memberships m WHERE m.article_slug = a.slug AND m.topic_slug = ANY($1::text[])
+     ) ORDER BY a.title, a.slug`,
     [topicSlugs],
   );
 }
@@ -54,7 +59,7 @@ export async function getAllArticles() {
   cacheTag("articles");
 
   return queryRows<ArticleSummary>(
-    `SELECT ${summaryFields} FROM articles WHERE published ORDER BY title, slug`,
+    `SELECT ${summaryFields} FROM articles a WHERE a.published ORDER BY a.title, a.slug`,
   );
 }
 
@@ -65,7 +70,7 @@ export async function getRecentArticles(limit = 5) {
   cacheTag("articles");
 
   return queryRows<ArticleSummary>(
-    `SELECT ${summaryFields} FROM articles WHERE published ORDER BY updated DESC, slug LIMIT $1`,
+    `SELECT ${summaryFields} FROM articles a WHERE a.published ORDER BY a.updated DESC, a.slug LIMIT $1`,
     [limit],
   );
 }

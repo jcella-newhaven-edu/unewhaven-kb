@@ -12,12 +12,16 @@ import {
   LinkIcon,
   ListBulletIcon,
   NumberedListIcon,
+  PhotoIcon,
+  RectangleStackIcon,
   StrikethroughIcon,
   UnderlineIcon,
 } from "@heroicons/react/24/outline";
 import { Button, Dropdown, Input, ToggleButton, Toolbar, Tooltip } from "@heroui/react";
 import { useEditorState, type Editor } from "@tiptap/react";
 import { validHref } from "@/lib/admin/validation";
+import { articleTab } from "./editor-nodes";
+import ImagePanel from "./image-panel";
 import styles from "../admin.module.css";
 import editorStyles from "./editor.module.css";
 
@@ -34,10 +38,18 @@ type FormatCommand = {
   run: () => boolean;
 };
 
-export default function FormattingToolbar({ editor }: { editor: Editor }) {
+export default function FormattingToolbar({
+  editor,
+  onUploadChange,
+}: {
+  editor: Editor;
+  onUploadChange: (uploading: boolean) => void;
+}) {
   const [link, setLink] = useState<string | null>(null);
   const [linkError, setLinkError] = useState(false);
+  const [imageOpen, setImageOpen] = useState(false);
   const linkId = useId();
+  const imagePanelId = `${linkId}-image`;
   const linkInput = useRef<HTMLInputElement>(null);
   const linkOpen = link !== null;
 
@@ -58,6 +70,7 @@ export default function FormattingToolbar({ editor }: { editor: Editor }) {
       orderedList: editor.isActive("orderedList"),
       blockquote: editor.isActive("blockquote"),
       codeBlock: editor.isActive("codeBlock"),
+      tabs: editor.isActive("articleTabs"),
       link: editor.isActive("link"),
       canUndo: editor.can().undo(),
       canRedo: editor.can().redo(),
@@ -98,6 +111,21 @@ export default function FormattingToolbar({ editor }: { editor: Editor }) {
     setLink(null);
     setLinkError(false);
     editor.commands.focus();
+  }
+
+  function closeImagePanel() {
+    setImageOpen(false);
+    editor.commands.focus();
+  }
+
+  function insertTabs() {
+    setLink(null);
+    setLinkError(false);
+    setImageOpen(false);
+    editor.chain().focus().insertContentAt(editor.state.selection.to, {
+      type: "articleTabs",
+      content: [articleTab("Tab 1"), articleTab("Tab 2")],
+    }).run();
   }
 
   function applyLink() {
@@ -150,7 +178,7 @@ export default function FormattingToolbar({ editor }: { editor: Editor }) {
         <ToggleGroup label="Text formatting" commands={marks} />
         <ToggleGroup label="Lists and blocks" commands={blocks} />
 
-        <div className={editorStyles.group} role="group" aria-label="Links and history">
+        <div className={editorStyles.group} role="group" aria-label="Insert content">
           <Tooltip delay={300}>
             <Button
               variant="ghost"
@@ -163,13 +191,55 @@ export default function FormattingToolbar({ editor }: { editor: Editor }) {
               aria-controls={linkOpen ? `${linkId}-panel` : undefined}
               onPress={() => {
                 if (linkOpen) closeLinkPanel();
-                else setLink(editor.getAttributes("link").href ?? "");
+                else {
+                  setImageOpen(false);
+                  setLink(editor.getAttributes("link").href ?? "");
+                }
               }}
             >
               <LinkIcon aria-hidden="true" className={editorStyles.icon} />
             </Button>
             <Tooltip.Content>{linkLabel}</Tooltip.Content>
           </Tooltip>
+          <Tooltip delay={300}>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              isIconOnly
+              isDisabled={active.codeBlock}
+              aria-label="Insert image"
+              aria-expanded={imageOpen}
+              aria-controls={imageOpen ? imagePanelId : undefined}
+              onPress={() => {
+                if (imageOpen) closeImagePanel();
+                else {
+                  setLink(null);
+                  setLinkError(false);
+                  setImageOpen(true);
+                }
+              }}
+            >
+              <PhotoIcon aria-hidden="true" className={editorStyles.icon} />
+            </Button>
+            <Tooltip.Content>Insert image</Tooltip.Content>
+          </Tooltip>
+          <Tooltip delay={300}>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              isIconOnly
+              isDisabled={active.codeBlock || active.tabs}
+              aria-label="Insert tabs"
+              onPress={insertTabs}
+            >
+              <RectangleStackIcon aria-hidden="true" className={editorStyles.icon} />
+            </Button>
+            <Tooltip.Content>Insert tabs</Tooltip.Content>
+          </Tooltip>
+        </div>
+        <div className={editorStyles.group} role="group" aria-label="History">
           <Tooltip delay={300}>
             <Button
               variant="ghost"
@@ -201,6 +271,9 @@ export default function FormattingToolbar({ editor }: { editor: Editor }) {
         </div>
       </Toolbar>
 
+      {imageOpen && (
+        <ImagePanel editor={editor} id={imagePanelId} onClose={closeImagePanel} onUploadChange={onUploadChange} />
+      )}
       {link !== null && (
         <div id={`${linkId}-panel`} className={styles.linkPanel}>
           <label htmlFor={linkId}>Link URL</label>

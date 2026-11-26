@@ -2,36 +2,69 @@
 
 import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { DatabaseError } from "pg";
+import { DatabaseError, type PoolClient } from "pg";
 import { getAdminSession } from "@/lib/admin/auth";
 import {
   type ArticleActionState,
   validateArticle,
   validateArticleVersion,
 } from "@/lib/admin/validation";
-import { queryRows } from "@/lib/postgres";
+import { withTransaction } from "@/lib/postgres";
 
 export type { ArticleActionState } from "@/lib/admin/validation";
 
-type ArticleChange = {
-  slug: string | null;
-  topicSlug: string;
-  parentSlug: string | null;
-  previousTopicSlug?: string | null;
-  previousParentSlug?: string | null;
-};
+type Change = { affectedTopics: string[] } | { failure: ArticleActionState };
 
 const versionExpression = `to_char(a.updated AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
 const staleArticle = "This article changed or was removed. Reload the page before trying again.";
-const missingTopic = { fieldErrors: { topicSlug: "Choose an existing topic." } };
 const slugConflict = { fieldErrors: { slug: "An article already uses this slug." } };
 const signIn = { error: "Sign in with an editorial account to change articles." };
 const saveFailed = { error: "The article could not be saved. Try again." };
 
-function refreshArticle(slug: string, change: ArticleChange, previousSlug = slug) {
-  const { topicSlug, parentSlug, previousTopicSlug, previousParentSlug } = change;
-  const topics = new Set([topicSlug, parentSlug, previousTopicSlug, previousParentSlug]);
+async function lockSelectedTopics(client: PoolClient, topicSlugs: string[]): Promise<ArticleActionState | null> {
+  // Topic deletion takes a conflicting lock before checking for article references.
+  const { rows } = await client.query<{ slug: string }>(
+    "SELECT slug FROM topics WHERE slug = ANY($1::text[]) ORDER BY slug FOR KEY SHARE",
+    [topicSlugs],
+  );
+  if (rows.length === topicSlugs.length) return null;
+  return rows.some(({ slug }) => slug === topicSlugs[0])
+    ? { fieldErrors: { additionalTopicSlug: "Choose existing additional topics." } }
+    : { fieldErrors: { topicSlug: "Choose an existing primary topic." } };
+}
 
+async function readLockedArticle(client: PoolClient, slug: string, updatedToken: string) {
+  const { rows } = await client.query<{ topicSlugs: string[] }>(
+    `SELECT ARRAY(SELECT m.topic_slug FROM article_topic_memberships m WHERE m.article_slug = a.slug) AS "topicSlugs"
+     FROM articles a WHERE a.slug = $1 AND ${versionExpression} = $2 FOR UPDATE OF a`,
+    [slug, updatedToken],
+  );
+  return rows[0];
+}
+
+async function saveTopicMemberships(client: PoolClient, slug: string, selected: string[]) {
+  await client.query(
+    "DELETE FROM article_topics WHERE article_slug = $1 AND NOT (topic_slug = ANY($2::text[]))",
+    [slug, selected],
+  );
+  await client.query(
+    `INSERT INTO article_topics (article_slug, topic_slug)
+     SELECT $1, topic_slug FROM unnest($2::text[]) AS chosen(topic_slug)
+     ON CONFLICT (article_slug, topic_slug) DO NOTHING`,
+    [slug, selected],
+  );
+}
+
+async function affectedTopicRoutes(client: PoolClient, slugs: string[]) {
+  const { rows } = await client.query<{ parentSlug: string }>(
+    `SELECT DISTINCT parent_slug AS "parentSlug" FROM topics
+     WHERE slug = ANY($1::text[]) AND NULLIF(parent_slug, '') IS NOT NULL`,
+    [slugs],
+  );
+  return [...slugs, ...rows.map(({ parentSlug }) => parentSlug)];
+}
+
+function refreshArticle(slug: string, affectedTopics: string[], previousSlug = slug) {
   updateTag("articles");
   updateTag("topics");
   for (const articleSlug of new Set([slug, previousSlug])) {
@@ -40,8 +73,7 @@ function refreshArticle(slug: string, change: ArticleChange, previousSlug = slug
     if (path.length <= 1024) revalidatePath(path);
     else revalidatePath("/articles/[slug]", "page");
   }
-  for (const topic of topics) {
-    if (!topic) continue;
+  for (const topic of new Set(affectedTopics)) {
     const tag = `topic:${topic}`;
     if (tag.length <= 256) updateTag(tag);
     const path = `/topics/${encodeURIComponent(topic)}`;
@@ -55,6 +87,7 @@ function refreshArticle(slug: string, change: ArticleChange, previousSlug = slug
   revalidatePath("/api/search");
   revalidatePath("/_not-found");
   revalidatePath("/admin");
+  revalidatePath("/admin/topics");
 }
 
 export async function createArticle(_previous: ArticleActionState, form: FormData): Promise<ArticleActionState> {
@@ -64,31 +97,33 @@ export async function createArticle(_previous: ArticleActionState, form: FormDat
   const parsed = validateArticle(form);
   if ("fieldErrors" in parsed) return parsed;
 
-  const { slug, title, summary, topicSlug, published, content } = parsed.data;
-  let change: ArticleChange | undefined;
+  const { slug, title, summary, topicSlug, topicSlugs, published, content } = parsed.data;
+  let change: Change;
   try {
-    [change] = await queryRows<ArticleChange>(
-      `WITH selected_topic AS (
-         SELECT slug, NULLIF(parent_slug, '') AS parent_slug FROM topics WHERE slug = $4 FOR KEY SHARE
-       ), saved AS (
-         INSERT INTO articles (slug, title, summary, topic_slug, published, body, body_text, updated)
-         SELECT $1, $2, $3, slug, $5, $6::jsonb, $7, clock_timestamp() FROM selected_topic
-         ON CONFLICT (slug) DO NOTHING
-         RETURNING slug
-       )
-       SELECT saved.slug, t.slug AS "topicSlug", t.parent_slug AS "parentSlug"
-       FROM selected_topic t LEFT JOIN saved ON true`,
-      [slug, title, summary, topicSlug, published, JSON.stringify(content?.body), content?.bodyText],
-    );
+    change = await withTransaction(async (client) => {
+      const failure = await lockSelectedTopics(client, topicSlugs);
+      if (failure) return { failure };
+
+      const result = await client.query(
+        `INSERT INTO articles (slug, title, summary, topic_slug, published, body, body_text, updated,
+                               author_id, last_editor_id, published_at)
+         VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, statement_timestamp(), $8, $8,
+                 CASE WHEN $5 THEN statement_timestamp() END)
+         ON CONFLICT (slug) DO NOTHING`,
+        [slug, title, summary, topicSlug, published, JSON.stringify(content?.body), content?.bodyText, session.id],
+      );
+      if (result.rowCount !== 1) return { failure: slugConflict };
+      await saveTopicMemberships(client, slug, topicSlugs);
+      return { affectedTopics: await affectedTopicRoutes(client, topicSlugs) };
+    });
   } catch (error) {
     console.error("Article insert failed.", error);
     return saveFailed;
   }
-  if (!change) return missingTopic;
-  if (!change.slug) return slugConflict;
+  if ("failure" in change) return change.failure;
 
-  refreshArticle(change.slug, change);
-  redirect(`/admin/articles/${encodeURIComponent(change.slug)}?saved=1`);
+  refreshArticle(slug, change.affectedTopics);
+  redirect(`/admin/articles/${encodeURIComponent(slug)}?saved=1`);
 }
 
 export async function updateArticle(_previous: ArticleActionState, form: FormData): Promise<ArticleActionState> {
@@ -102,29 +137,29 @@ export async function updateArticle(_previous: ArticleActionState, form: FormDat
   const parsed = validateArticle(form, originalSlug);
   if ("fieldErrors" in parsed) return parsed;
 
-  const { slug, title, summary, topicSlug, published, content } = parsed.data;
-  let change: ArticleChange | undefined;
+  const { slug, title, summary, topicSlug, topicSlugs, published, content } = parsed.data;
+  let change: Change;
   try {
-    [change] = await queryRows<ArticleChange>(
-      `WITH selected_topic AS (
-         SELECT slug, NULLIF(parent_slug, '') AS parent_slug FROM topics WHERE slug = $6 FOR KEY SHARE
-       ), prior_article AS (
-         SELECT a.slug, a.updated, a.topic_slug, NULLIF(t.parent_slug, '') AS parent_slug
-         FROM articles a LEFT JOIN topics t ON a.topic_slug = t.slug
-         WHERE a.slug = $1 AND ${versionExpression} = $2
-       ), saved AS (
-         UPDATE articles a
-         SET slug = $3, title = $4, summary = $5, topic_slug = t.slug, published = $7,
-             body = COALESCE($8::jsonb, a.body), body_text = COALESCE($9, a.body_text),
-             updated = GREATEST(clock_timestamp(), a.updated + interval '1 microsecond')
-         FROM prior_article p CROSS JOIN selected_topic t
-         WHERE a.slug = p.slug AND a.updated = p.updated
-         RETURNING a.slug, p.topic_slug AS "previousTopicSlug", p.parent_slug AS "previousParentSlug"
-       )
-       SELECT saved.*, t.slug AS "topicSlug", t.parent_slug AS "parentSlug"
-       FROM selected_topic t LEFT JOIN saved ON true`,
-      [originalSlug, updatedToken, slug, title, summary, topicSlug, published, content ? JSON.stringify(content.body) : null, content?.bodyText ?? null],
-    );
+    change = await withTransaction(async (client) => {
+      const failure = await lockSelectedTopics(client, topicSlugs);
+      if (failure) return { failure };
+      const prior = await readLockedArticle(client, originalSlug, updatedToken);
+      if (!prior) return { failure: { error: staleArticle } };
+
+      await client.query(
+        `UPDATE articles
+         SET slug = $2, title = $3, summary = $4, topic_slug = $5, published = $6,
+             body = COALESCE($7::jsonb, body), body_text = COALESCE($8, body_text),
+             updated = GREATEST(statement_timestamp(), updated + interval '1 microsecond'),
+             last_editor_id = $9,
+             published_at = CASE WHEN $6 AND NOT published
+                                 THEN COALESCE(published_at, statement_timestamp()) ELSE published_at END
+         WHERE slug = $1`,
+        [originalSlug, slug, title, summary, topicSlug, published, content ? JSON.stringify(content.body) : null, content?.bodyText ?? null, session.id],
+      );
+      await saveTopicMemberships(client, slug, topicSlugs);
+      return { affectedTopics: await affectedTopicRoutes(client, [...prior.topicSlugs, ...topicSlugs]) };
+    });
   } catch (error) {
     if (error instanceof DatabaseError && error.code === "23505" && error.constraint === "articles_pkey") {
       return slugConflict;
@@ -132,11 +167,10 @@ export async function updateArticle(_previous: ArticleActionState, form: FormDat
     console.error("Article update failed.", error);
     return saveFailed;
   }
-  if (!change) return missingTopic;
-  if (!change.slug) return { error: staleArticle };
+  if ("failure" in change) return change.failure;
 
-  refreshArticle(change.slug, change, originalSlug);
-  redirect(`/admin/articles/${encodeURIComponent(change.slug)}?saved=1`);
+  refreshArticle(slug, change.affectedTopics, originalSlug);
+  redirect(`/admin/articles/${encodeURIComponent(slug)}?saved=1`);
 }
 
 export async function deleteArticle(_previous: ArticleActionState, form: FormData): Promise<ArticleActionState> {
@@ -147,23 +181,20 @@ export async function deleteArticle(_previous: ArticleActionState, form: FormDat
   if ("fieldErrors" in version) return { error: version.fieldErrors.updatedToken ?? version.fieldErrors.slug };
 
   const { slug, updatedToken } = version.data;
-  let change: ArticleChange | undefined;
+  let change: Change;
   try {
-    [change] = await queryRows<ArticleChange>(
-      `WITH removed AS (
-         DELETE FROM articles a WHERE a.slug = $1 AND ${versionExpression} = $2
-         RETURNING a.slug, a.topic_slug
-       )
-       SELECT r.slug, r.topic_slug AS "topicSlug", NULLIF(t.parent_slug, '') AS "parentSlug"
-       FROM removed r LEFT JOIN topics t ON r.topic_slug = t.slug`,
-      [slug, updatedToken],
-    );
+    change = await withTransaction(async (client) => {
+      const prior = await readLockedArticle(client, slug, updatedToken);
+      if (!prior) return { failure: { error: staleArticle } };
+      await client.query("DELETE FROM articles WHERE slug = $1", [slug]);
+      return { affectedTopics: await affectedTopicRoutes(client, prior.topicSlugs) };
+    });
   } catch (error) {
     console.error("Article deletion failed.", error);
     return { error: "The article could not be deleted. Try again." };
   }
-  if (!change?.slug) return { error: staleArticle };
+  if ("failure" in change) return change.failure;
 
-  refreshArticle(change.slug, change);
+  refreshArticle(slug, change.affectedTopics);
   redirect("/admin?deleted=1");
 }

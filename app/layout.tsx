@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { SearchProvider } from "@/components/SearchDialog";
 import { themeScript } from "@/lib/theme";
 
 const geist = localFont({
@@ -33,10 +34,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           Skip to content
         </a>
-        <Navbar />
-        <div id="kb-content" tabIndex={-1} className="flex flex-1 flex-col focus:outline-none">
-          {children}
-        </div>
+        <SearchProvider>
+          <Navbar />
+          <div id="kb-content" tabIndex={-1} className="flex flex-1 flex-col focus:outline-none">
+            {children}
+          </div>
+        </SearchProvider>
         <Footer />
       </body>
     </html>

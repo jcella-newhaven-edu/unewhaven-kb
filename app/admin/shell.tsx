@@ -3,11 +3,17 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Button } from "@heroui/react";
-import { buttonVariants } from "@heroui/styles";
+import { ArrowLeftIcon, DocumentTextIcon, PlusIcon, RectangleStackIcon } from "@heroicons/react/24/outline";
 import { getAdminSession, isAdminAuthConfigured } from "@/lib/admin/auth";
 import styles from "./admin.module.css";
 
 type AdminSession = NonNullable<Awaited<ReturnType<typeof getAdminSession>>>;
+type AdminSection = "articles" | "topics";
+
+const sections = [
+  { id: "articles", label: "Articles", href: "/admin", icon: DocumentTextIcon },
+  { id: "topics", label: "Topics", href: "/admin/topics", icon: RectangleStackIcon },
+] as const;
 
 export function AdminPage({ children }: { children: ReactNode }) {
   return (
@@ -70,20 +76,32 @@ export function AdminHeader({
   title,
   session,
   children,
+  actions,
   section = "articles",
 }: {
   title: string;
   session: AdminSession;
   children?: ReactNode;
-  section?: "articles" | "topics";
+  actions?: ReactNode;
+  section?: AdminSection;
 }) {
   return (
     <>
-      <header className={styles.header}>
-        <div className={styles.headerTitle}>
-          <h1 className={styles.heading}>{title}</h1>
-          {children}
-        </div>
+      <div className={styles.workspaceBar}>
+        <nav aria-label="Administration" className={styles.navigation}>
+          {sections.map(({ id, label, href, icon: Icon }) => (
+            <Link
+              key={id}
+              href={href}
+              prefetch={false}
+              aria-current={section === id ? "page" : undefined}
+              className={styles.navLink}
+            >
+              <Icon aria-hidden="true" />
+              {label}
+            </Link>
+          ))}
+        </nav>
         <div className={styles.session}>
           <div className={styles.account}>
             <span>{session.displayName}</span>
@@ -93,25 +111,34 @@ export function AdminHeader({
             <Button type="submit" variant="secondary" size="sm">Sign out</Button>
           </form>
         </div>
+      </div>
+      <header className={styles.header}>
+        <div className={styles.headerTitle}>
+          {children}
+          <h1 className={styles.heading}>{title}</h1>
+        </div>
+        {actions}
       </header>
-      <nav aria-label="Administration" className={styles.navigation}>
-        <Link
-          href="/admin"
-          prefetch={false}
-          aria-current={section === "articles" ? "true" : undefined}
-          className={buttonVariants({ variant: section === "articles" ? "secondary" : "ghost", size: "sm" })}
-        >
-          Articles
-        </Link>
-        <Link
-          href="/admin/topics"
-          prefetch={false}
-          aria-current={section === "topics" ? "true" : undefined}
-          className={buttonVariants({ variant: section === "topics" ? "secondary" : "ghost", size: "sm" })}
-        >
-          Topics
-        </Link>
-      </nav>
     </>
+  );
+}
+
+export function AdminBackLink({ section }: { section: AdminSection }) {
+  const { href, label } = section === "articles" ? sections[0] : sections[1];
+  return (
+    <Link href={href} className={styles.headerBack} prefetch={false}>
+      <ArrowLeftIcon aria-hidden="true" />
+      Back to {label.toLowerCase()}
+    </Link>
+  );
+}
+
+export function AdminCreateLink({ section }: { section: AdminSection }) {
+  const label = section === "articles" ? "New article" : "New topic";
+  return (
+    <Link href={`/admin/${section}/new`} className={styles.primaryLink} prefetch={false}>
+      <PlusIcon aria-hidden="true" />
+      {label}
+    </Link>
   );
 }

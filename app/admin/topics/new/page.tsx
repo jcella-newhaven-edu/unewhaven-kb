@@ -1,7 +1,5 @@
-import Link from "next/link";
 import { listManagedTopics } from "@/lib/admin/topics";
-import { AdminGate, AdminHeader, AdminPage } from "../../shell";
-import styles from "../../admin.module.css";
+import { AdminBackLink, AdminGate, AdminHeader, AdminPage } from "../../shell";
 import TopicForm from "../editor";
 
 export default function NewAdminTopic() {
@@ -12,7 +10,7 @@ export default function NewAdminTopic() {
         return (
           <>
             <AdminHeader title="New topic" session={session} section="topics">
-              <Link href="/admin/topics" className={styles.backLink} prefetch={false}>Back to topics</Link>
+              <AdminBackLink section="topics" />
             </AdminHeader>
             <TopicForm parentTopics={topics.filter((topic) => !topic.parentSlug)} />
           </>

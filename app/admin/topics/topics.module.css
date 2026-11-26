@@ -9,12 +9,28 @@
   gap: 0.6rem;
 }
 
-@media (max-width: 42rem) {
-  .row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+.table thead th:first-child {
+  inline-size: 40%;
+}
+
+.table thead th:nth-child(2) {
+  inline-size: 24%;
+}
+
+.editLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 48rem) minmax(14rem, 19rem);
+  align-items: start;
+  gap: 1.25rem;
+}
+
+@media (max-width: 48rem) {
+  .table thead th:first-child,
+  .table thead th:nth-child(2) {
+    inline-size: auto;
   }
 
-  .row > :first-child {
-    grid-column: 1 / -1;
+  .editLayout {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
