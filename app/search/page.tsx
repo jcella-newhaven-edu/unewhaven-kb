@@ -30,7 +30,7 @@ async function Results({ searchParams }: Pick<PageProps<"/search">, "searchParam
         <ul className={styles.list}>
           {results.map((r) => (
             <li key={r.slug} className={styles.listItem}>
-              <Link href={`/articles/${encodeURIComponent(r.slug)}`} className={styles.row}>
+              <Link href={`/articles/${r.slug}`} className={styles.row}>
                 <div className="min-w-0">
                   <h2 className={styles.rowTitle}>{r.title}</h2>
                   {r.summary && <p className={styles.summary}>{r.summary}</p>}
@@ -38,7 +38,7 @@ async function Results({ searchParams }: Pick<PageProps<"/search">, "searchParam
                 <ChevronRightIcon aria-hidden="true" className={styles.arrow} />
               </Link>
               <Link
-                href={`/topics/${encodeURIComponent(r.topicSlug)}`}
+                href={`/topics/${r.topicSlug}`}
                 className={`mb-3.5 inline-block text-[0.8125rem] leading-[1.45] text-link underline-offset-[0.2em] ${browseFocus}`}
               >
                 {r.topicTitle}

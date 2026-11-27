@@ -171,7 +171,7 @@ function SearchDialog() {
               <ListBox
                 aria-label={heading}
                 items={results}
-                onAction={(slug) => go(`/articles/${encodeURIComponent(slug)}`)}
+                onAction={(slug) => go(`/articles/${slug}`)}
                 renderEmptyState={() => (
                   <p className="px-3 py-8 text-center text-sm text-muted">
                     {isLoading ? "Searching…" : trimmed ? <>No articles match “{trimmed}”.</> : "No articles yet."}

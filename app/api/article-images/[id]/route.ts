@@ -1,12 +1,12 @@
 import { getAdminSession } from "@/lib/admin/auth";
-import { isArticleImageId } from "@/lib/article-media";
 import { queryRows } from "@/lib/postgres";
 
+const idPattern = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 const privateHeaders = { "Cache-Control": "private, no-store" };
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!isArticleImageId(id)) return new Response(null, { status: 404, headers: privateHeaders });
+  if (!idPattern.test(id)) return new Response(null, { status: 404, headers: privateHeaders });
 
   const session = await getAdminSession();
   const imagePath = `/api/article-images/${id}`;

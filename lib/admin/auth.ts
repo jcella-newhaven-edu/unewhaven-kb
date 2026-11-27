@@ -70,10 +70,6 @@ export function isAdminAuthConfigured(): boolean {
   return readSettings() !== null;
 }
 
-export function isAdminOrigin(request: Request): boolean {
-  return request.headers.get("origin") === readSettings()?.origin;
-}
-
 function cookieName(settings: AdminAuthSettings, kind: "session" | "sign-in"): string {
   return `${settings.secure ? "__Host-" : ""}kb-admin-${kind}`;
 }
