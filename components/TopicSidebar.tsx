@@ -55,7 +55,7 @@ export default async function TopicSidebar({
                   <Accordion.Body className="pt-0 pe-0 pb-[0.15rem] ps-[0.8125rem]">
                     <ul className={topicLinks}>
                       <li>
-                        <Link href={`/topics/${topic.slug}`} className={`${topicLink} font-[620] text-kb-muted`} prefetch={false}>
+                        <Link href={`/topics/${encodeURIComponent(topic.slug)}`} className={`${topicLink} font-[620] text-kb-muted`} prefetch={false}>
                           View topic
                         </Link>
                       </li>
@@ -63,7 +63,7 @@ export default async function TopicSidebar({
                       {subtopics.map((subtopic) => (
                         <li key={subtopic.slug}>
                           <Link
-                            href={`/topics/${subtopic.slug}`}
+                            href={`/topics/${encodeURIComponent(subtopic.slug)}`}
                             className={`${topicLink} font-[680] text-kb-heading`}
                             prefetch={false}
                           >
@@ -90,7 +90,7 @@ function ArticleLinks({ articles, currentSlug }: { articles?: ArticleSummary[]; 
   return articles?.map((article) => (
     <li key={article.slug}>
       <Link
-        href={`/articles/${article.slug}`}
+        href={`/articles/${encodeURIComponent(article.slug)}`}
         aria-current={article.slug === currentSlug ? "page" : undefined}
         className={`${topicLink} text-kb-muted aria-[current=page]:bg-kb-highlight aria-[current=page]:font-[680] aria-[current=page]:text-kb-heading`}
         prefetch={false}

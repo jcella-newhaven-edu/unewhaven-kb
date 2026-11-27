@@ -144,7 +144,7 @@ export default async function Home() {
                     key={topic.slug}
                     className="nth-[3n+2]:[--topic-icon-bg:light-dark(#fff4d6,#4c3e20)] nth-[3n+2]:[--topic-icon-color:light-dark(#725316,#ffe290)] nth-[3n]:[--topic-icon-bg:light-dark(#e7f5f2,#1d413e)] nth-[3n]:[--topic-icon-color:light-dark(#285b51,#b1e6d7)]"
                   >
-                    <Link href={`/topics/${topic.slug}`} className={`group/topic block h-full rounded-2xl ${linkFocus}`}>
+                    <Link href={`/topics/${encodeURIComponent(topic.slug)}`} className={`group/topic block h-full rounded-2xl ${linkFocus}`}>
                       <Card className="grid h-full min-h-29.5 content-start gap-2.5 rounded-[inherit] border border-kb-line bg-background px-4.75 py-4.25 shadow-none wrap-anywhere group-hover/topic:border-[color:color-mix(in_srgb,var(--kb-line),var(--link)_35%)] group-hover/topic:bg-kb-hover max-[33.125rem]:min-h-33 max-[33.125rem]:p-3">
                         <div className="flex items-center justify-between">
                           <span className="grid size-8.75 place-items-center rounded-[0.625rem] [background-color:var(--topic-icon-bg,light-dark(#eaf1fd,#263d5f))] [color:var(--topic-icon-color,light-dark(#294d81,#a9c7f8))]">
@@ -192,7 +192,7 @@ export default async function Home() {
                 return (
                   <li key={title} className="border-kb-line min-[49.375rem]:not-first:border-t max-[49.375rem]:nth-[n+3]:border-t">
                     {slug
-                      ? <Link href={`/articles/${slug}`} className={quickTaskLink}>{label}</Link>
+                      ? <Link href={`/articles/${encodeURIComponent(slug)}`} className={quickTaskLink}>{label}</Link>
                       : <a href={fallback} className={quickTaskLink}>{label}</a>}
                   </li>
                 );
@@ -226,7 +226,7 @@ export default async function Home() {
               {recent.map((article) => (
                 <li key={article.slug}>
                   <Link
-                    href={`/articles/${article.slug}`}
+                    href={`/articles/${encodeURIComponent(article.slug)}`}
                     className="group flex justify-between gap-x-4 gap-y-2.5 px-4.75 py-3.25 text-kb-heading hover:bg-kb-hover focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-focus max-[33.125rem]:flex-col max-[33.125rem]:gap-1"
                   >
                     <span className="text-[0.9375rem] font-[650] underline-offset-4 group-hover:underline">{article.title}</span>
