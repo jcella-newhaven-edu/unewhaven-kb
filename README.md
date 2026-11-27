@@ -119,6 +119,41 @@ On each topic or subtopic, choose an icon for its public listing. Existing topic
 
 An article has one primary topic for its breadcrumb and can also appear under additional topics or subtopics. The editor supports labeled content tabs, HTTPS or site-relative image links, and PNG, JPEG, GIF, and WebP uploads up to 5 MiB. Uploads are stored in PostgreSQL and become public when used in a published article. The admin article pages show the author, first recorded publication, and last edit when available. Older records can have unknown author or publication dates.
 
+### Bulk import and export
+
+Editors and admins can open **Admin → Import / Export**. Export the entire knowledge base, topics only, or the articles in a selected topic and its subtopics. Article exports include drafts, rich text, topic assignments, and referenced uploads. Import the exported JSON on another stack, or use an export as a template.
+
+Choose a file and preview it before applying. The default skips matching slugs. **Update existing content** replaces matching topics and articles, including their publication status and topic assignments. Records absent from the file stay in place. New article authors are recorded as the importing user. Imports keep the authors of existing articles.
+
+A JSON file may contain just topics or just articles. Use an empty array for the other group. Article topic slugs must exist on the destination or be included in the file. For older content, replace `#`, `?`, or `%` in slugs and their references before importing.
+
+```json
+{
+  "format": "unewhaven-kb",
+  "version": 1,
+  "topics": [
+    {
+      "slug": "accounts-and-sign-in",
+      "title": "Accounts & Sign-In",
+      "icon": "lock-closed"
+    }
+  ],
+  "articles": [
+    {
+      "slug": "reset-your-password",
+      "title": "Reset your password",
+      "topicSlug": "accounts-and-sign-in",
+      "bodyText": "Open the university account portal to reset your password.",
+      "published": false
+    }
+  ]
+}
+```
+
+Files can be up to 32 MiB and can contain up to 10,000 topics, articles, or images per array. If a reverse proxy enforces a lower request limit, raise it to 32 MiB for `/api/admin/content-transfer`.
+
+### Microsoft sign-in and database setup
+
 In Microsoft Entra, create a single-tenant app registration. Add a **Web** redirect URI ending in `/api/admin/auth/callback` and create the two app roles above with **Users/Groups** as the allowed member type. Assign users or groups to those roles in the associated enterprise application. For separate dev and prod stacks, register their exact redirect URIs and use the matching origin in each stack. [Microsoft Entra app role setup](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps)
 
 Set these server-side variables in the stack or in `.env.local` for local development. Compose passes them to the app at runtime.

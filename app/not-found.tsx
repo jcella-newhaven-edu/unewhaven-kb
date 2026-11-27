@@ -42,7 +42,7 @@ export default async function NotFound() {
             {suggestions.map((a) => (
               <li key={a.slug}>
                 <Link
-                  href={`/articles/${a.slug}`}
+                  href={`/articles/${encodeURIComponent(a.slug)}`}
                   className="font-medium text-link underline decoration-2 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                 >
                   {a.title}

@@ -58,7 +58,7 @@ async function ArticleContent({ params }: Pick<PageProps<"/articles/[slug]">, "p
       >
         <Breadcrumbs.Item href="/">Home</Breadcrumbs.Item>
         {trail.map((topic) => (
-          <Breadcrumbs.Item key={topic.slug} href={`/topics/${topic.slug}`}>
+          <Breadcrumbs.Item key={topic.slug} href={`/topics/${encodeURIComponent(topic.slug)}`}>
             {topic.title}
           </Breadcrumbs.Item>
         ))}
