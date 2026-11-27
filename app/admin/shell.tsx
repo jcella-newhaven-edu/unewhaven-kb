@@ -3,16 +3,18 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Button } from "@heroui/react";
-import { ArrowLeftIcon, DocumentTextIcon, PlusIcon, RectangleStackIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, ArrowsRightLeftIcon, DocumentTextIcon, PlusIcon, RectangleStackIcon } from "@heroicons/react/24/outline";
 import { getAdminSession, isAdminAuthConfigured } from "@/lib/admin/auth";
 import { adminStyles } from "./admin-styles";
 
 type AdminSession = NonNullable<Awaited<ReturnType<typeof getAdminSession>>>;
-type AdminSection = "articles" | "topics";
+type EditableSection = "articles" | "topics";
+type AdminSection = EditableSection | "content-transfer";
 
 const sections = [
   { id: "articles", label: "Articles", href: "/admin", icon: DocumentTextIcon },
   { id: "topics", label: "Topics", href: "/admin/topics", icon: RectangleStackIcon },
+  { id: "content-transfer", label: "Import / Export", href: "/admin/content-transfer", icon: ArrowsRightLeftIcon },
 ] as const;
 
 const heading = "m-0 text-[clamp(2rem,3.6vw,2.75rem)] leading-[1.1] font-[740] tracking-[-0.045em] text-kb-heading";
@@ -90,7 +92,7 @@ export function AdminHeader({
   return (
     <>
       <div className="mb-[clamp(1.25rem,3vw,2rem)] flex flex-wrap items-center justify-between gap-3 rounded-xl border border-kb-line bg-kb-panel px-3 py-[0.55rem]">
-        <nav aria-label="Administration" className="flex items-center gap-1.5">
+        <nav aria-label="Administration" className="flex flex-wrap items-center gap-1.5">
           {sections.map(({ id, label, href, icon: Icon }) => (
             <Link
               key={id}
@@ -125,7 +127,7 @@ export function AdminHeader({
   );
 }
 
-export function AdminBackLink({ section }: { section: AdminSection }) {
+export function AdminBackLink({ section }: { section: EditableSection }) {
   const { href, label } = section === "articles" ? sections[0] : sections[1];
   return (
     <Link href={href} className="inline-flex items-center justify-self-start gap-[0.35rem] text-sm font-semibold text-link hover:underline hover:underline-offset-[0.15em] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus" prefetch={false}>
@@ -135,7 +137,7 @@ export function AdminBackLink({ section }: { section: AdminSection }) {
   );
 }
 
-export function AdminCreateLink({ section }: { section: AdminSection }) {
+export function AdminCreateLink({ section }: { section: EditableSection }) {
   const label = section === "articles" ? "New article" : "New topic";
   return (
     <Link href={`/admin/${section}/new`} className={adminStyles.primaryLink} prefetch={false}>

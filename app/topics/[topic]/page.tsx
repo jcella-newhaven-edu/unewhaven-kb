@@ -42,7 +42,7 @@ async function TopicContent({ params }: Pick<PageProps<"/topics/[topic]">, "para
       <Breadcrumbs>
         <Breadcrumbs.Item href="/">Home</Breadcrumbs.Item>
         {trail.slice(0, -1).map((t) => (
-          <Breadcrumbs.Item key={t.slug} href={`/topics/${t.slug}`}>
+          <Breadcrumbs.Item key={t.slug} href={`/topics/${encodeURIComponent(t.slug)}`}>
             {t.title}
           </Breadcrumbs.Item>
         ))}
@@ -62,7 +62,7 @@ async function TopicContent({ params }: Pick<PageProps<"/topics/[topic]">, "para
           <section key={subtopic.slug} aria-labelledby={`subtopic-${subtopic.slug}`} className="mt-10 max-w-[50.625rem]">
             <h2 id={`subtopic-${subtopic.slug}`} className="text-2xl font-[720] tracking-[-0.035em] text-kb-heading wrap-anywhere">
               <Link
-                href={`/topics/${subtopic.slug}`}
+                href={`/topics/${encodeURIComponent(subtopic.slug)}`}
                 className={`hover:underline hover:underline-offset-[0.23em] ${browseFocus}`}
               >
                 {subtopic.title}
@@ -94,7 +94,7 @@ function ArticleList({
     <ul className={styles.list}>
       {articles.map((article) => (
         <li key={article.slug} className={styles.listItem}>
-          <Link href={`/articles/${article.slug}`} className={styles.row}>
+          <Link href={`/articles/${encodeURIComponent(article.slug)}`} className={styles.row}>
             <div className="min-w-0">
               <Heading className={styles.rowTitle}>{article.title}</Heading>
               {article.summary && <p className={styles.summary}>{article.summary}</p>}

@@ -31,7 +31,7 @@ export default async function TopicsPage() {
             <li key={topic.slug}>
               <Card className="h-full gap-0 rounded-[0.875rem] border border-kb-line bg-background p-0 shadow-none wrap-anywhere hover:border-focus focus-within:border-focus">
                 <Link
-                  href={`/topics/${topic.slug}`}
+                  href={`/topics/${encodeURIComponent(topic.slug)}`}
                   className={`group grid gap-2.5 rounded-[inherit] px-4.5 py-4 no-underline hover:bg-kb-hover ${browseFocus}`}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -56,7 +56,7 @@ export default async function TopicsPage() {
                     {topic.subtopics.map((subtopic) => (
                       <li key={subtopic.slug}>
                         <Link
-                          href={`/topics/${subtopic.slug}`}
+                          href={`/topics/${encodeURIComponent(subtopic.slug)}`}
                           className={`flex items-center justify-between gap-2 rounded-sm py-[0.4rem] text-sm text-link hover:underline hover:underline-offset-[0.23em] ${browseFocus}`}
                         >
                           <span className="flex min-w-0 items-center gap-2">
