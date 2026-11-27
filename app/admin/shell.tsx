@@ -3,18 +3,19 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Button } from "@heroui/react";
-import { ArrowLeftIcon, ArrowsRightLeftIcon, DocumentTextIcon, PlusIcon, RectangleStackIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, ArrowsRightLeftIcon, DocumentTextIcon, PlusIcon, RectangleStackIcon, UsersIcon } from "@heroicons/react/24/outline";
 import { getAdminSession, isAdminAuthConfigured } from "@/lib/admin/auth";
 import { adminStyles } from "./admin-styles";
 
 type AdminSession = NonNullable<Awaited<ReturnType<typeof getAdminSession>>>;
 type EditableSection = "articles" | "topics";
-type AdminSection = EditableSection | "content-transfer";
+type AdminSection = EditableSection | "content-transfer" | "users";
 
 const sections = [
   { id: "articles", label: "Articles", href: "/admin", icon: DocumentTextIcon },
   { id: "topics", label: "Topics", href: "/admin/topics", icon: RectangleStackIcon },
   { id: "content-transfer", label: "Import / Export", href: "/admin/content-transfer", icon: ArrowsRightLeftIcon },
+  { id: "users", label: "Users", href: "/admin/users", icon: UsersIcon },
 ] as const;
 
 const heading = "m-0 text-[clamp(2rem,3.6vw,2.75rem)] leading-[1.1] font-[740] tracking-[-0.045em] text-kb-heading";
@@ -93,7 +94,7 @@ export function AdminHeader({
     <>
       <div className="mb-[clamp(1.25rem,3vw,2rem)] flex flex-wrap items-center justify-between gap-3 rounded-xl border border-kb-line bg-kb-panel px-3 py-[0.55rem]">
         <nav aria-label="Administration" className="flex flex-wrap items-center gap-1.5">
-          {sections.map(({ id, label, href, icon: Icon }) => (
+          {sections.filter(({ id }) => id !== "users" || session.role === "admin").map(({ id, label, href, icon: Icon }) => (
             <Link
               key={id}
               href={href}

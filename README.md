@@ -111,13 +111,15 @@ Open `/admin` to sign in with Microsoft. The knowledge base creates or updates t
 | Entra app role value | Permissions |
 | --- | --- |
 | `KB.Editor` | Create and edit articles and topics, change article URLs, save drafts, publish and unpublish |
-| `KB.Admin` | All editor permissions plus delete articles and topics |
+| `KB.Admin` | All editor permissions plus delete articles and topics, view users and article attribution |
 
 Article URLs are set in the editor. When an article URL changes, update links that used its previous URL. Use **Topics** in the admin navigation to manage topics and subtopics. Before deleting a topic, reassign its articles and move or delete its subtopics.
 
 On each topic or subtopic, choose an icon for its public listing. Existing topics use the open-book icon until an editor or administrator chooses another.
 
-An article has one primary topic for its breadcrumb and can also appear under additional topics or subtopics. The editor supports labeled content tabs, HTTPS or site-relative image links, and PNG, JPEG, GIF, and WebP uploads up to 5 MiB. Uploads are stored in PostgreSQL and become public when used in a published article. The admin article pages show the author, first recorded publication, and last edit when available. Older records can have unknown author or publication dates.
+An article has one primary topic for its breadcrumb and can also appear under additional topics or subtopics. The editor supports labeled content tabs, HTTPS or site-relative image links, and PNG, JPEG, GIF, and WebP uploads up to 5 MiB. Uploads are stored in PostgreSQL and become public when used in a published article. The admin article pages show first publication and last edit dates when available. Only administrators can see the author and last editor.
+
+Administrators can open **Admin → Users** to see accounts that have signed in to the knowledge base. A user’s page shows their last sign-in and the articles they authored or are listed as the latest editor of, including drafts.
 
 ### Bulk import and export
 

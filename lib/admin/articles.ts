@@ -25,8 +25,9 @@ const fields = `
 const from = `
   FROM articles a
   LEFT JOIN topics t ON a.topic_slug = t.slug
-  LEFT JOIN admin_accounts creator ON a.author_id = creator.id
-  LEFT JOIN admin_accounts editor ON a.last_editor_id = editor.id
+  LEFT JOIN admin_accounts viewer ON viewer.id = $1 AND viewer.role = 'admin'
+  LEFT JOIN admin_accounts creator ON a.author_id = creator.id AND creator.tenant_id = viewer.tenant_id
+  LEFT JOIN admin_accounts editor ON a.last_editor_id = editor.id AND editor.tenant_id = viewer.tenant_id
   LEFT JOIN LATERAL (
     SELECT array_agg(m.topic_slug ORDER BY (m.topic_slug = a.topic_slug) DESC, m.topic_slug) AS slugs,
            jsonb_agg(jsonb_build_object('slug', m.topic_slug, 'title', COALESCE(label.title, m.topic_slug))
@@ -39,20 +40,24 @@ const from = `
 async function requireEditorialAccess() {
   const session = await getAdminSession();
   if (session?.role !== "admin" && session?.role !== "editor") redirect("/admin");
+  return session;
 }
 
 export async function listAdminArticles(): Promise<AdminArticleSummary[]> {
-  await requireEditorialAccess();
-  return queryRows<AdminArticleSummary>(`SELECT ${fields} ${from} ORDER BY a.updated DESC, a.slug`);
+  const session = await requireEditorialAccess();
+  return queryRows<AdminArticleSummary>(
+    `SELECT ${fields} ${from} ORDER BY a.updated DESC, a.slug`,
+    [session.role === "admin" ? session.id : null],
+  );
 }
 
 export async function getAdminArticle(slug: string): Promise<AdminArticle | null> {
-  await requireEditorialAccess();
+  const session = await requireEditorialAccess();
   if (!isArticleSlug(slug)) return null;
 
   const [article] = await queryRows<AdminArticle>(
-    `SELECT ${fields}, a.body, a.body_text AS "bodyText" ${from} WHERE a.slug = $1`,
-    [slug],
+    `SELECT ${fields}, a.body, a.body_text AS "bodyText" ${from} WHERE a.slug = $2`,
+    [session.role === "admin" ? session.id : null, slug],
   );
   return article ?? null;
 }

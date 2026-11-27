@@ -36,6 +36,7 @@ export default function AdminIndex({ searchParams }: { searchParams: Promise<Adm
         searchParams={searchParams}
         render={async (session) => {
           const [query, articles] = await Promise.all([searchParams, listAdminArticles()]);
+          const showAttribution = session.role === "admin";
           const current = statuses.find(({ value }) => value === query.status)?.value ?? "all";
           const search = typeof query.q === "string" ? query.q.trim().slice(0, 120) : "";
           const term = search.toLowerCase();
@@ -86,7 +87,7 @@ export default function AdminIndex({ searchParams }: { searchParams: Promise<Adm
                       <tr>
                         <th scope="col" className={`${adminTable.column} w-[39%]`}>Article</th>
                         <th scope="col" className={`${adminTable.column} w-[11%]`}>Status</th>
-                        <th scope="col" className={adminTable.column}>Author</th>
+                        {showAttribution && <th scope="col" className={adminTable.column}>Author</th>}
                         <th scope="col" className={`${adminTable.column} w-[15%]`}>First published</th>
                         <th scope="col" className={adminTable.column}>Last edited</th>
                       </tr>
@@ -109,9 +110,11 @@ export default function AdminIndex({ searchParams }: { searchParams: Promise<Adm
                               <Chip.Label>{article.published ? "Published" : "Draft"}</Chip.Label>
                             </Chip>
                           </td>
-                          <td data-label="Author" className={adminTable.cell}>
-                            {article.authorName ?? <span className={adminStyles.rowDetail}>Not recorded</span>}
-                          </td>
+                          {showAttribution && (
+                            <td data-label="Author" className={adminTable.cell}>
+                              {article.authorName ?? <span className={adminStyles.rowDetail}>Not recorded</span>}
+                            </td>
+                          )}
                           <td data-label="First published" className={adminTable.cell}>
                             {article.publishedAt
                               ? <time dateTime={article.publishedAt.toISOString()}>{dateFormat.format(article.publishedAt)}</time>
@@ -119,7 +122,9 @@ export default function AdminIndex({ searchParams }: { searchParams: Promise<Adm
                           </td>
                           <td data-label="Last edited" className={adminTable.cell}>
                             <time dateTime={article.updated.toISOString()}>{dateFormat.format(article.updated)}</time>
-                            <span className={adminStyles.rowDetail}>{article.lastEditorName ?? "Editor not recorded"}</span>
+                            {showAttribution && (
+                              <span className={adminStyles.rowDetail}>{article.lastEditorName ?? "Editor not recorded"}</span>
+                            )}
                           </td>
                         </tr>
                       ))}

@@ -9,15 +9,17 @@ const historyDate = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium", timeStyle: "short", timeZone: "UTC",
 });
 
-function ArticleHistory({ article }: { article: AdminArticle }) {
+function ArticleHistory({ article, showAttribution }: { article: AdminArticle; showAttribution: boolean }) {
   return (
     <section className={styles.detailsPanel} aria-label="Article history">
       <h2>Article history</h2>
       <dl>
-        <div>
-          <dt>Author</dt>
-          <dd>{article.authorName ?? "Not recorded"}</dd>
-        </div>
+        {showAttribution && (
+          <div>
+            <dt>Author</dt>
+            <dd>{article.authorName ?? "Not recorded"}</dd>
+          </div>
+        )}
         <div>
           <dt>First published</dt>
           <dd>
@@ -30,10 +32,12 @@ function ArticleHistory({ article }: { article: AdminArticle }) {
           <dt>Last edited</dt>
           <dd><time dateTime={article.updated.toISOString()}>{historyDate.format(article.updated)} UTC</time></dd>
         </div>
-        <div>
-          <dt>Last edited by</dt>
-          <dd>{article.lastEditorName ?? "Not recorded"}</dd>
-        </div>
+        {showAttribution && (
+          <div>
+            <dt>Last edited by</dt>
+            <dd>{article.lastEditorName ?? "Not recorded"}</dd>
+          </div>
+        )}
       </dl>
     </section>
   );
@@ -63,9 +67,19 @@ export default function EditAdminArticle({
             {query.saved === "1" && <p className={styles.notice} role="status">Article saved.</p>}
             <AdminArticleForm
               key={`${article.slug}:${article.updatedToken}`}
-              article={article}
+              article={{
+                slug: article.slug,
+                title: article.title,
+                summary: article.summary,
+                topicSlug: article.topicSlug,
+                topicSlugs: article.topicSlugs,
+                published: article.published,
+                updatedToken: article.updatedToken,
+                body: article.body,
+                bodyText: article.bodyText,
+              }}
               topics={topics}
-              attribution={<ArticleHistory article={article} />}
+              attribution={<ArticleHistory article={article} showAttribution={session.role === "admin"} />}
             />
             {session.role === "admin" && (
               <DeleteArticle slug={article.slug} title={article.title} updatedToken={article.updatedToken} />
