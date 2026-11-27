@@ -29,7 +29,7 @@ export default async function ArticlesPage() {
         <ul className={styles.list}>
           {articles.map((article) => (
             <li key={article.slug} className={styles.listItem}>
-              <Link href={`/articles/${encodeURIComponent(article.slug)}`} className={styles.row}>
+              <Link href={`/articles/${article.slug}`} className={styles.row}>
                 <div className="min-w-0">
                   <h2 className={styles.rowTitle}>{article.title}</h2>
                   {article.summary && <p className={styles.summary}>{article.summary}</p>}
