@@ -23,7 +23,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     // suppressHydrationWarning: the theme script adds the "dark" class before React loads.
-    <html lang="en" className={`h-full antialiased ${geist.variable}`} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`h-full scroll-pt-[calc(var(--kb-header-height)+1rem)] antialiased scheme-light [--kb-header-height:4.625rem] max-[48rem]:[--kb-header-height:4rem] dark:scheme-dark motion-safe:data-[theme-transition]:transition-(--kb-theme-transition) motion-safe:data-[theme-transition]:duration-[260ms] motion-safe:data-[theme-transition]:ease-in-out ${geist.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

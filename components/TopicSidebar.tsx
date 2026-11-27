@@ -2,7 +2,9 @@ import { Accordion } from "@heroui/react";
 import Link from "next/link";
 import { getAllArticles, type ArticleSummary } from "@/lib/data/articles";
 import { getAllTopics } from "@/lib/data/topics";
-import styles from "@/app/articles/[slug]/article.module.css";
+
+const topicLinks = "my-0 grid list-none gap-0.5 border-s border-kb-line ps-1.5";
+const topicLink = "block rounded-[0.3125rem] px-1.5 py-[0.4375rem] text-[0.78125rem] leading-[1.35] wrap-anywhere hover:bg-kb-panel hover:text-kb-heading";
 
 export default async function TopicSidebar({
   rootSlug,
@@ -26,37 +28,48 @@ export default async function TopicSidebar({
   }
 
   return (
-    <aside className={styles.sidebar}>
+    <aside
+      data-article-sidebar=""
+      className="sticky top-[calc(var(--kb-header-height)+1.625rem)] me-[1.6875rem] hidden max-h-[calc(100dvh-var(--kb-header-height)-3.25rem)] overflow-y-auto border-e border-kb-line pe-4 pb-[1.1875rem] scrollbar-thin [grid-area:topics] min-[791px]:block min-[1071px]:me-9"
+    >
       <nav aria-labelledby="article-topics">
-        <h2 id="article-topics" className={styles.railHeading}>Topics</h2>
+        <h2 id="article-topics" className="mb-[0.5625rem] text-sm leading-[1.4] font-[720] text-kb-heading">Topics</h2>
         <Accordion
           hideSeparator
           defaultExpandedKeys={rootSlug ? [rootSlug] : []}
-          className={styles.topicAccordion}
+          className="gap-0"
         >
           {roots.map((topic) => {
             const subtopics = topics.filter((child) => child.parentSlug === topic.slug);
             return (
               <Accordion.Item key={topic.slug} id={topic.slug}>
                 <Accordion.Heading>
-                  <Accordion.Trigger className={styles.topicTrigger}>
-                    <Accordion.Indicator className={styles.topicChevron} />
+                  <Accordion.Trigger
+                    className="group/topic flex min-h-[2.1875rem] items-center justify-start gap-1.5 rounded-md p-[0.45rem] text-start text-[0.8125rem] leading-[1.35] font-[650] text-kb-heading hover:bg-kb-panel"
+                  >
+                    <Accordion.Indicator className="m-0 size-4 flex-none -rotate-90 text-inherit group-aria-expanded/topic:rotate-0" />
                     {topic.title}
                   </Accordion.Trigger>
                 </Accordion.Heading>
                 <Accordion.Panel>
-                  <Accordion.Body className={styles.topicPanel}>
-                    <ul className={styles.topicLinks}>
+                  <Accordion.Body className="pt-0 pe-0 pb-[0.15rem] ps-[0.8125rem]">
+                    <ul className={topicLinks}>
                       <li>
-                        <Link href={`/topics/${topic.slug}`} className={styles.topicOverview} prefetch={false}>
+                        <Link href={`/topics/${topic.slug}`} className={`${topicLink} font-[620] text-kb-muted`} prefetch={false}>
                           View topic
                         </Link>
                       </li>
                       <ArticleLinks articles={byTopic.get(topic.slug)} currentSlug={currentSlug} />
                       {subtopics.map((subtopic) => (
-                        <li key={subtopic.slug} className={styles.subtopic}>
-                          <Link href={`/topics/${subtopic.slug}`} prefetch={false}>{subtopic.title}</Link>
-                          <ul>
+                        <li key={subtopic.slug}>
+                          <Link
+                            href={`/topics/${subtopic.slug}`}
+                            className={`${topicLink} font-[680] text-kb-heading`}
+                            prefetch={false}
+                          >
+                            {subtopic.title}
+                          </Link>
+                          <ul className={topicLinks}>
                             <ArticleLinks articles={byTopic.get(subtopic.slug)} currentSlug={currentSlug} />
                           </ul>
                         </li>
@@ -79,6 +92,7 @@ function ArticleLinks({ articles, currentSlug }: { articles?: ArticleSummary[]; 
       <Link
         href={`/articles/${article.slug}`}
         aria-current={article.slug === currentSlug ? "page" : undefined}
+        className={`${topicLink} text-kb-muted aria-[current=page]:bg-kb-highlight aria-[current=page]:font-[680] aria-[current=page]:text-kb-heading`}
         prefetch={false}
       >
         {article.title}

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ChevronRightIcon } from "@heroicons/react/24/outline";
 import { Breadcrumbs } from "@heroui/react";
 import { getAllArticles } from "@/lib/data/articles";
-import styles from "../browse.module.css";
+import { browseStyles as styles } from "../browse-styles";
 
 export const metadata: Metadata = { title: "All articles" };
 
@@ -14,7 +14,7 @@ export default async function ArticlesPage() {
   const articles = await getAllArticles();
 
   return (
-    <main className={`kb-shell ${styles.shell}`}>
+    <main className={styles.shell}>
       <Breadcrumbs>
         <Breadcrumbs.Item href="/">Home</Breadcrumbs.Item>
         <Breadcrumbs.Item>Articles</Breadcrumbs.Item>
@@ -30,7 +30,7 @@ export default async function ArticlesPage() {
           {articles.map((article) => (
             <li key={article.slug} className={styles.listItem}>
               <Link href={`/articles/${article.slug}`} className={styles.row}>
-                <div className={styles.rowText}>
+                <div className="min-w-0">
                   <h2 className={styles.rowTitle}>{article.title}</h2>
                   {article.summary && <p className={styles.summary}>{article.summary}</p>}
                   <p className={styles.meta}>

@@ -20,16 +20,18 @@ import {
 import { Button, Dropdown, Input, ToggleButton, Toolbar, Tooltip } from "@heroui/react";
 import { useEditorState, type Editor } from "@tiptap/react";
 import { validHref } from "@/lib/admin/validation";
+import { adminStyles } from "../admin-styles";
 import { articleTab } from "./editor-nodes";
 import ImagePanel from "./image-panel";
-import styles from "../admin.module.css";
-import editorStyles from "./editor.module.css";
 
 const textStyles = [
   { id: "paragraph", label: "Paragraph" },
   { id: "heading-2", label: "Heading 2" },
   { id: "heading-3", label: "Heading 3" },
 ] as const;
+
+const toolbarGroup = "flex items-center gap-0.5";
+const groupSeparators = "min-[32rem]:[&>div+div]:ms-[0.15rem] min-[32rem]:[&>div+div]:border-s min-[32rem]:[&>div+div]:border-kb-line min-[32rem]:[&>div+div]:ps-[0.35rem]";
 
 type FormatCommand = {
   label: string;
@@ -146,16 +148,16 @@ export default function FormattingToolbar({
 
   return (
     <>
-      <Toolbar className={styles.toolbar} aria-label="Article formatting">
-        <div className={editorStyles.group}>
+      <Toolbar className={`${adminStyles.toolbar} ${groupSeparators}`} aria-label="Article formatting">
+        <div className={toolbarGroup}>
           <Dropdown>
             <Dropdown.Trigger
-              className={editorStyles.styleTrigger}
+              className="inline-flex min-h-8 min-w-27 items-center justify-between gap-[0.4rem] rounded-md px-2 text-[0.8125rem] font-[650] text-kb-heading hover:bg-kb-hover focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-focus data-[open]:bg-kb-hover"
               type="button"
               aria-label={`Text style: ${textStyle.label}`}
             >
               {textStyle.label}
-              <ChevronDownIcon aria-hidden="true" className={editorStyles.icon} />
+              <ChevronDownIcon aria-hidden="true" className="size-4 shrink-0" />
             </Dropdown.Trigger>
             <Dropdown.Popover placement="bottom start">
               <Dropdown.Menu
@@ -178,7 +180,7 @@ export default function FormattingToolbar({
         <ToggleGroup label="Text formatting" commands={marks} />
         <ToggleGroup label="Lists and blocks" commands={blocks} />
 
-        <div className={editorStyles.group} role="group" aria-label="Insert content">
+        <div className={toolbarGroup} role="group" aria-label="Insert content">
           <Tooltip delay={300}>
             <Button
               variant="ghost"
@@ -197,7 +199,7 @@ export default function FormattingToolbar({
                 }
               }}
             >
-              <LinkIcon aria-hidden="true" className={editorStyles.icon} />
+              <LinkIcon aria-hidden="true" className="size-4 shrink-0" />
             </Button>
             <Tooltip.Content>{linkLabel}</Tooltip.Content>
           </Tooltip>
@@ -220,7 +222,7 @@ export default function FormattingToolbar({
                 }
               }}
             >
-              <PhotoIcon aria-hidden="true" className={editorStyles.icon} />
+              <PhotoIcon aria-hidden="true" className="size-4 shrink-0" />
             </Button>
             <Tooltip.Content>Insert image</Tooltip.Content>
           </Tooltip>
@@ -234,12 +236,12 @@ export default function FormattingToolbar({
               aria-label="Insert tabs"
               onPress={insertTabs}
             >
-              <RectangleStackIcon aria-hidden="true" className={editorStyles.icon} />
+              <RectangleStackIcon aria-hidden="true" className="size-4 shrink-0" />
             </Button>
             <Tooltip.Content>Insert tabs</Tooltip.Content>
           </Tooltip>
         </div>
-        <div className={editorStyles.group} role="group" aria-label="History">
+        <div className={toolbarGroup} role="group" aria-label="History">
           <Tooltip delay={300}>
             <Button
               variant="ghost"
@@ -250,7 +252,7 @@ export default function FormattingToolbar({
               aria-label="Undo"
               onPress={() => editor.chain().focus().undo().run()}
             >
-              <ArrowUturnLeftIcon aria-hidden="true" className={editorStyles.icon} />
+              <ArrowUturnLeftIcon aria-hidden="true" className="size-4 shrink-0" />
             </Button>
             <Tooltip.Content>Undo</Tooltip.Content>
           </Tooltip>
@@ -264,7 +266,7 @@ export default function FormattingToolbar({
               aria-label="Redo"
               onPress={() => editor.chain().focus().redo().run()}
             >
-              <ArrowUturnRightIcon aria-hidden="true" className={editorStyles.icon} />
+              <ArrowUturnRightIcon aria-hidden="true" className="size-4 shrink-0" />
             </Button>
             <Tooltip.Content>Redo</Tooltip.Content>
           </Tooltip>
@@ -275,9 +277,9 @@ export default function FormattingToolbar({
         <ImagePanel editor={editor} id={imagePanelId} onClose={closeImagePanel} onUploadChange={onUploadChange} />
       )}
       {link !== null && (
-        <div id={`${linkId}-panel`} className={styles.linkPanel}>
+        <div id={`${linkId}-panel`} className={adminStyles.linkPanel}>
           <label htmlFor={linkId}>Link URL</label>
-          <div className={styles.linkControls}>
+          <div className={adminStyles.linkControls}>
             <Input
               ref={linkInput}
               id={linkId}
@@ -310,7 +312,7 @@ export default function FormattingToolbar({
             )}
             <Button size="sm" type="button" variant="ghost" onPress={closeLinkPanel}>Cancel</Button>
           </div>
-          {linkError && <p id={`${linkId}-error`} className={styles.error} role="alert">Enter a valid web, email, or site link.</p>}
+          {linkError && <p id={`${linkId}-error`} className={adminStyles.error} role="alert">Enter a valid web, email, or site link.</p>}
         </div>
       )}
     </>
@@ -319,7 +321,7 @@ export default function FormattingToolbar({
 
 function ToggleGroup({ label, commands }: { label: string; commands: FormatCommand[] }) {
   return (
-    <div className={editorStyles.group} role="group" aria-label={label}>
+    <div className={toolbarGroup} role="group" aria-label={label}>
       {commands.map(({ label, icon: Icon, pressed, run }) => (
         <Tooltip key={label} delay={300}>
           <ToggleButton
@@ -330,7 +332,7 @@ function ToggleGroup({ label, commands }: { label: string; commands: FormatComma
             isSelected={pressed}
             onChange={run}
           >
-            <Icon aria-hidden="true" className={editorStyles.icon} />
+            <Icon aria-hidden="true" className="size-4 shrink-0" />
           </ToggleButton>
           <Tooltip.Content>{label}</Tooltip.Content>
         </Tooltip>

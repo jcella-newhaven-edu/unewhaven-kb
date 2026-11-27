@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { ChevronRightIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { Breadcrumbs, Button } from "@heroui/react";
 import { searchArticles } from "@/lib/data/search";
-import styles from "../browse.module.css";
+import { browseFocus, browseStyles as styles } from "../browse-styles";
 
 export const metadata: Metadata = { title: "Search" };
 
@@ -31,13 +31,16 @@ async function Results({ searchParams }: Pick<PageProps<"/search">, "searchParam
           {results.map((r) => (
             <li key={r.slug} className={styles.listItem}>
               <Link href={`/articles/${r.slug}`} className={styles.row}>
-                <div className={styles.rowText}>
+                <div className="min-w-0">
                   <h2 className={styles.rowTitle}>{r.title}</h2>
                   {r.summary && <p className={styles.summary}>{r.summary}</p>}
                 </div>
                 <ChevronRightIcon aria-hidden="true" className={styles.arrow} />
               </Link>
-              <Link href={`/topics/${r.topicSlug}`} className={styles.meta}>
+              <Link
+                href={`/topics/${r.topicSlug}`}
+                className={`mb-3.5 inline-block text-[0.8125rem] leading-[1.45] text-link underline-offset-[0.2em] ${browseFocus}`}
+              >
                 {r.topicTitle}
               </Link>
             </li>
@@ -57,12 +60,12 @@ async function QueryBox({ searchParams }: Pick<PageProps<"/search">, "searchPara
 // A plain GET form, so search works without JavaScript and results pages can be shared.
 function SearchForm({ defaultValue }: { defaultValue: string }) {
   return (
-    <form action="/search" method="get" role="search" className={styles.form}>
+    <form action="/search" method="get" role="search" className="mt-5.5 flex max-w-[35rem] items-stretch gap-2.5">
       <label htmlFor="search-q" className="sr-only">
         Search articles
       </label>
-      <div className={styles.field}>
-        <MagnifyingGlassIcon aria-hidden="true" className={styles.searchIcon} />
+      <div className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[0.625rem] border border-kb-line bg-background px-3 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus">
+        <MagnifyingGlassIcon aria-hidden="true" className="size-4.5 flex-none text-kb-muted" />
         <input
           id="search-q"
           name="q"
@@ -70,10 +73,13 @@ function SearchForm({ defaultValue }: { defaultValue: string }) {
           defaultValue={defaultValue}
           placeholder="Search articles…"
           autoComplete="off"
-          className={styles.input}
+          className="min-w-0 w-full py-2.75 text-base text-foreground outline-none placeholder:text-kb-muted"
         />
       </div>
-      <Button type="submit" className={styles.searchButton}>
+      <Button
+        type="submit"
+        className={`h-auto min-h-11 rounded-[0.625rem] bg-unh-secondary font-bold text-unh-primary hover:bg-unh-secondary-dark data-[hovered]:bg-unh-secondary-dark ${browseFocus}`}
+      >
         Search
       </Button>
     </form>
@@ -82,7 +88,7 @@ function SearchForm({ defaultValue }: { defaultValue: string }) {
 
 export default function SearchPage({ searchParams }: PageProps<"/search">) {
   return (
-    <main className={`kb-shell ${styles.shell}`}>
+    <main className={styles.shell}>
       <Breadcrumbs>
         <Breadcrumbs.Item href="/">Home</Breadcrumbs.Item>
         <Breadcrumbs.Item>Search</Breadcrumbs.Item>

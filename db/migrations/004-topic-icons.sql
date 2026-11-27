@@ -1,0 +1,5 @@
+BEGIN;
+
+ALTER TABLE topics ADD COLUMN IF NOT EXISTS icon text NOT NULL DEFAULT 'book-open';
+
+COMMIT;

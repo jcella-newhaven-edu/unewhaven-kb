@@ -1,13 +1,14 @@
 "use client";
 
 import { useActionState, useId, useState } from "react";
-import { Alert, Button, Description, FieldError, Form, Input, Label, TextArea, TextField } from "@heroui/react";
+import { Alert, Button, Description, FieldError, Form, Input, Label, ListBox, Select, TextArea, TextField } from "@heroui/react";
 import Link from "next/link";
+import TopicIcon from "@/components/TopicIcon";
 import type { ManagedTopic } from "@/lib/admin/topics";
 import { createTopic, updateTopic } from "@/lib/admin/topic-actions";
 import { slugFromTitle } from "@/lib/admin/slug";
-import styles from "../admin.module.css";
-import topicStyles from "./topics.module.css";
+import { defaultTopicIcon, isTopicIcon, topicIconOptions } from "@/lib/topic-icons";
+import { adminStyles as styles } from "../admin-styles";
 
 export default function TopicForm({
   topic,
@@ -20,6 +21,7 @@ export default function TopicForm({
   const [title, setTitle] = useState(topic?.title ?? "");
   const [slugOverride, setSlugOverride] = useState<string>();
   const [description, setDescription] = useState(topic?.description ?? "");
+  const [icon, setIcon] = useState(isTopicIcon(topic?.icon) ? topic.icon : defaultTopicIcon);
   const [parent, setParent] = useState(topic?.parentSlug ?? "");
   const [sortOrder, setSortOrder] = useState(String(topic?.sortOrder ?? 0));
   const parentId = useId();
@@ -92,6 +94,41 @@ export default function TopicForm({
           {errors.description && <FieldError>{errors.description}</FieldError>}
         </TextField>
 
+        <Select
+          className={styles.field}
+          name="icon"
+          value={icon}
+          onChange={(value) => { if (isTopicIcon(value)) setIcon(value); }}
+          isDisabled={saving}
+          isInvalid={!!errors.icon}
+          fullWidth
+        >
+          <Label>Icon</Label>
+          <Select.Trigger className="min-h-10 border border-kb-line bg-kb-panel">
+            <Select.Value>
+              <span className="flex items-center gap-2">
+                <TopicIcon icon={icon} className="size-5 shrink-0 text-link" />
+                {topicIconOptions.find(({ id }) => id === icon)?.label}
+              </span>
+            </Select.Value>
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox className="max-h-60 overflow-y-auto">
+              {topicIconOptions.map(({ id, label }) => (
+                <ListBox.Item key={id} id={id} textValue={label}>
+                  <span className="flex items-center gap-2">
+                    <TopicIcon icon={id} className="size-5 shrink-0" />
+                    {label}
+                  </span>
+                  <ListBox.ItemIndicator />
+                </ListBox.Item>
+              ))}
+            </ListBox>
+          </Select.Popover>
+          {errors.icon && <FieldError>{errors.icon}</FieldError>}
+        </Select>
+
         <div className={styles.fieldPair}>
           <div className={styles.field}>
             <label htmlFor={parentId}>Parent topic</label>
@@ -110,7 +147,7 @@ export default function TopicForm({
               {parentTopics.map(({ slug, title }) => <option key={slug} value={slug}>{title}</option>)}
             </select>
             {parentHint && (
-              <p id={parentHint} className={topicStyles.muted}>
+              <p id={parentHint} className="text-[0.8125rem] text-kb-muted">
                 Move its subtopics before making this topic a subtopic.
               </p>
             )}

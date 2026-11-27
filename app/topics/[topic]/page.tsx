@@ -6,7 +6,7 @@ import { ChevronRightIcon } from "@heroicons/react/24/outline";
 import { Breadcrumbs } from "@heroui/react";
 import { getArticlesByTopics, type ArticleSummary } from "@/lib/data/articles";
 import { getAllTopics, getSubtopics, getTopicTrail } from "@/lib/data/topics";
-import styles from "../../browse.module.css";
+import { browseFocus, browseStyles as styles } from "../../browse-styles";
 
 // Prerender every topic and subtopic at build time. New ones are rendered on first visit.
 export async function generateStaticParams() {
@@ -59,9 +59,14 @@ async function TopicContent({ params }: Pick<PageProps<"/topics/[topic]">, "para
       {subtopics.map((subtopic) => {
         const list = articlesIn(subtopic.slug);
         return (
-          <section key={subtopic.slug} aria-labelledby={`subtopic-${subtopic.slug}`} className={styles.group}>
-            <h2 id={`subtopic-${subtopic.slug}`} className={styles.groupTitle}>
-              <Link href={`/topics/${subtopic.slug}`}>{subtopic.title}</Link>
+          <section key={subtopic.slug} aria-labelledby={`subtopic-${subtopic.slug}`} className="mt-10 max-w-[50.625rem]">
+            <h2 id={`subtopic-${subtopic.slug}`} className="text-2xl font-[720] tracking-[-0.035em] text-kb-heading wrap-anywhere">
+              <Link
+                href={`/topics/${subtopic.slug}`}
+                className={`hover:underline hover:underline-offset-[0.23em] ${browseFocus}`}
+              >
+                {subtopic.title}
+              </Link>
             </h2>
             {subtopic.description && <p className={styles.summary}>{subtopic.description}</p>}
             {list.length > 0 ? (
@@ -90,7 +95,7 @@ function ArticleList({
       {articles.map((article) => (
         <li key={article.slug} className={styles.listItem}>
           <Link href={`/articles/${article.slug}`} className={styles.row}>
-            <div className={styles.rowText}>
+            <div className="min-w-0">
               <Heading className={styles.rowTitle}>{article.title}</Heading>
               {article.summary && <p className={styles.summary}>{article.summary}</p>}
               <p className={styles.meta}>
@@ -107,7 +112,7 @@ function ArticleList({
 
 export default function TopicPage({ params }: PageProps<"/topics/[topic]">) {
   return (
-    <main className={`kb-shell ${styles.shell}`}>
+    <main className={styles.shell}>
       <Suspense fallback={<p className={styles.status}>Loading topic…</p>}>
         <TopicContent params={params} />
       </Suspense>

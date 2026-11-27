@@ -2,8 +2,7 @@ import { notFound } from "next/navigation";
 import { Button } from "@heroui/react";
 import { listManagedTopics } from "@/lib/admin/topics";
 import { AdminBackLink, AdminGate, AdminHeader, AdminPage } from "../../shell";
-import styles from "../../admin.module.css";
-import topicStyles from "../topics.module.css";
+import { adminStyles } from "../../admin-styles";
 import TopicForm from "../editor";
 import { DeleteTopic } from "../delete";
 
@@ -33,14 +32,14 @@ export default function EditAdminTopic({
             <AdminHeader title="Edit topic" session={session} section="topics">
               <AdminBackLink section="topics" />
             </AdminHeader>
-            {query.saved === "1" && <p className={styles.notice} role="status">Topic saved.</p>}
-            <div className={topicStyles.editLayout}>
+            {query.saved === "1" && <p className={adminStyles.notice} role="status">Topic saved.</p>}
+            <div className="grid items-start gap-5 min-[48rem]:grid-cols-[minmax(0,48rem)_minmax(14rem,19rem)]">
               <TopicForm
                 key={`${topic.slug}:${topic.updatedToken}`}
                 topic={topic}
                 parentTopics={hasChildren ? [] : topics.filter((candidate) => !candidate.parentSlug && candidate.slug !== topic.slug)}
               />
-              <aside className={styles.detailsPanel} aria-label="Topic usage">
+              <aside className={adminStyles.detailsPanel} aria-label="Topic usage">
                 <h2>Topic usage</h2>
                 <dl>
                   <div>
@@ -54,9 +53,9 @@ export default function EditAdminTopic({
                 </dl>
                 {session.role === "admin" && (
                   deleteBlocker ? (
-                    <div className={`${styles.deleteArea} ${topicStyles.blockedDelete}`}>
+                    <div className="mt-3.5 grid justify-items-start gap-2.5 border-t border-kb-line pt-3.5">
                       <Button type="button" variant="danger-soft" isDisabled>Delete topic</Button>
-                      <p className={topicStyles.muted}>
+                      <p className="text-[0.8125rem] text-kb-muted">
                         Move or remove {deleteBlocker} before deleting this topic.{hasArticles && " Drafts count as articles."}
                       </p>
                     </div>

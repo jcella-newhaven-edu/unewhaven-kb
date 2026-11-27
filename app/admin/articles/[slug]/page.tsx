@@ -3,7 +3,7 @@ import { getAdminArticle, listAdminTopics, type AdminArticle } from "@/lib/admin
 import { AdminBackLink, AdminGate, AdminHeader, AdminPage } from "../../shell";
 import AdminArticleForm from "../editor";
 import { DeleteArticle } from "../delete";
-import styles from "../../admin.module.css";
+import { adminStyles as styles } from "../../admin-styles";
 
 const historyDate = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium", timeStyle: "short", timeZone: "UTC",

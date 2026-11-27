@@ -6,6 +6,7 @@ import type { PoolClient } from "pg";
 import { getAdminSession } from "@/lib/admin/auth";
 import { isArticleSlug } from "@/lib/admin/validation";
 import { withTransaction } from "@/lib/postgres";
+import { defaultTopicIcon, isTopicIcon } from "@/lib/topic-icons";
 
 export type TopicActionState = {
   error?: string;
@@ -15,6 +16,7 @@ export type TopicActionState = {
 type TopicFields = {
   slug: string;
   title: string;
+  icon: string | null;
   description: string;
   sortOrder: number;
   parentSlug: string | null;
@@ -42,6 +44,7 @@ function topicFields(form: FormData, creating: boolean): { data: TopicFields } |
   const rawSlug = field(form, "slug") ?? "";
   const slug = creating ? rawSlug.trim() : rawSlug;
   const title = field(form, "title")?.trim() ?? "";
+  const icon = field(form, "icon");
   const description = field(form, "description", true)?.trim();
   const parent = field(form, "parentSlug", true);
   const order = field(form, "sortOrder")?.trim() ?? "";
@@ -56,6 +59,9 @@ function topicFields(form: FormData, creating: boolean): { data: TopicFields } |
   if (!title || title.length > 160 || /[\r\n\t]/.test(title)) {
     fieldErrors.title = "Enter a single-line title between 1 and 160 characters.";
   }
+  if (form.has("icon") && (icon === null || !isTopicIcon(icon))) {
+    fieldErrors.icon = "Choose an icon from the catalog.";
+  }
   if (description === undefined || description.length > 500) {
     fieldErrors.description = "Use 500 characters or fewer for the description.";
   }
@@ -67,7 +73,7 @@ function topicFields(form: FormData, creating: boolean): { data: TopicFields } |
   }
 
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
-  return { data: { slug, title, description: description ?? "", sortOrder, parentSlug: parent || null } };
+  return { data: { slug, title, icon, description: description ?? "", sortOrder, parentSlug: parent || null } };
 }
 
 function topicVersion(form: FormData) {
@@ -132,15 +138,15 @@ export async function createTopic(_previous: TopicActionState, form: FormData): 
 
   const parsed = topicFields(form, true);
   if ("fieldErrors" in parsed) return parsed;
-  const { slug, title, description, sortOrder, parentSlug } = parsed.data;
+  const { slug, title, icon, description, sortOrder, parentSlug } = parsed.data;
 
   try {
     const failure = await withLockedTopics(async (client) => {
       if (!await canUseParent(client, parentSlug)) return missingParent;
       const { rowCount } = await client.query(
-        `INSERT INTO topics (slug, title, description, sort_order, parent_slug)
-         VALUES ($1, $2, $3, $4, $5) ON CONFLICT (slug) DO NOTHING`,
-        [slug, title, description, sortOrder, parentSlug],
+        `INSERT INTO topics (slug, title, description, sort_order, parent_slug, icon)
+         VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (slug) DO NOTHING`,
+        [slug, title, description, sortOrder, parentSlug, icon ?? defaultTopicIcon],
       );
       if (rowCount !== 1) return { fieldErrors: { slug: "A topic already uses this slug." } };
     });
@@ -163,7 +169,7 @@ export async function updateTopic(_previous: TopicActionState, form: FormData): 
   const parsed = topicFields(form, false);
   if ("fieldErrors" in parsed) return parsed;
   const { slug, updatedToken } = version;
-  const { title, description, sortOrder, parentSlug } = parsed.data;
+  const { title, icon, description, sortOrder, parentSlug } = parsed.data;
 
   let priorParent: string | null;
   try {
@@ -176,8 +182,9 @@ export async function updateTopic(_previous: TopicActionState, form: FormData): 
       if (!await canUseParent(client, parentSlug)) return missingParent;
 
       await client.query(
-        `UPDATE topics SET title = $2, description = $3, sort_order = $4, parent_slug = $5 WHERE slug = $1`,
-        [slug, title, description, sortOrder, parentSlug],
+        `UPDATE topics SET title = $2, description = $3, sort_order = $4, parent_slug = $5,
+                           icon = COALESCE($6, icon) WHERE slug = $1`,
+        [slug, title, description, sortOrder, parentSlug, icon],
       );
       return { priorParent: current.parentSlug };
     });

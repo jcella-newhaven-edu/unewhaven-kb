@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Button, Chip, SearchField } from "@heroui/react";
 import { listAdminArticles } from "@/lib/admin/articles";
 import { AdminCreateLink, AdminGate, AdminHeader, AdminPage } from "./shell";
-import styles from "./admin.module.css";
+import { adminStyles, adminTable } from "./admin-styles";
 
 type AdminSearch = {
   error?: string | string[];
@@ -50,23 +50,24 @@ export default function AdminIndex({ searchParams }: { searchParams: Promise<Adm
           return (
             <>
               <AdminHeader title="Articles" session={session} actions={<AdminCreateLink section="articles" />} />
-              {query.deleted === "1" && <p className={styles.notice} role="status">Article deleted.</p>}
-              <div className={styles.directory}>
-                <div className={styles.listControls}>
-                  <nav aria-label="Publication status" className={styles.filters}>
+              {query.deleted === "1" && <p className={adminStyles.notice} role="status">Article deleted.</p>}
+              <div className={adminStyles.directory}>
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-kb-line px-4 py-3.5 max-[42rem]:p-3">
+                  <nav aria-label="Publication status" className="flex flex-wrap gap-1 rounded-[0.625rem] border border-kb-line bg-kb-panel p-1">
                     {statuses.map(({ value, label }) => (
                       <Link
                         key={value}
                         href={statusHref(value, search)}
                         aria-current={value === current ? "page" : undefined}
                         prefetch={false}
+                        className="inline-flex items-center gap-[0.35rem] rounded-md px-[0.7rem] py-[0.4rem] text-sm font-semibold text-kb-muted hover:bg-kb-hover hover:text-kb-heading aria-[current=page]:bg-kb-hover aria-[current=page]:text-kb-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus max-[42rem]:px-2"
                       >
                         {label}
-                        <span className={styles.filterCount}>{counts[value]}</span>
+                        <span className="min-w-[1.2rem] text-end text-xs text-kb-muted max-[42rem]:min-w-0">{counts[value]}</span>
                       </Link>
                     ))}
                   </nav>
-                  <form action="/admin" method="get" className={styles.searchForm}>
+                  <form action="/admin" method="get" className="flex min-w-[min(19rem,100%)] max-w-[27rem] flex-1 items-center gap-2 [&>[data-slot=search-field]]:min-w-0 [&>[data-slot=search-field]]:flex-1 [&>button]:shrink-0">
                     {current !== "all" && <input type="hidden" name="status" value={current} />}
                     <SearchField key={search} aria-label="Search articles" name="q" defaultValue={search} fullWidth>
                       <SearchField.Group>
@@ -80,56 +81,56 @@ export default function AdminIndex({ searchParams }: { searchParams: Promise<Adm
                 </div>
 
                 {entries.length ? (
-                  <table className={`${styles.table} ${styles.articleTable}`} aria-label="Articles">
-                    <thead>
+                  <table className={adminTable.table} aria-label="Articles">
+                    <thead className={adminTable.head}>
                       <tr>
-                        <th scope="col">Article</th>
-                        <th scope="col">Status</th>
-                        <th scope="col">Author</th>
-                        <th scope="col">First published</th>
-                        <th scope="col">Last edited</th>
+                        <th scope="col" className={`${adminTable.column} w-[39%]`}>Article</th>
+                        <th scope="col" className={`${adminTable.column} w-[11%]`}>Status</th>
+                        <th scope="col" className={adminTable.column}>Author</th>
+                        <th scope="col" className={`${adminTable.column} w-[15%]`}>First published</th>
+                        <th scope="col" className={adminTable.column}>Last edited</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className={adminTable.body}>
                       {entries.map((article) => (
-                        <tr key={article.slug}>
-                          <th scope="row">
-                            <div className={styles.rowIdentity}>
-                              <Link href={`/admin/articles/${encodeURIComponent(article.slug)}`} prefetch={false}>
+                        <tr key={article.slug} className={adminTable.row}>
+                          <th scope="row" className={adminTable.name}>
+                            <div className="grid gap-[0.2rem]">
+                              <Link href={`/admin/articles/${encodeURIComponent(article.slug)}`} className={adminStyles.rowLink} prefetch={false}>
                                 {article.title}
                               </Link>
-                              <span className={styles.rowDetail}>
+                              <span className={adminStyles.rowDetail}>
                                 {article.topics.length ? article.topics.map(({ title }) => title).join(" · ") : article.topicTitle}
                               </span>
                             </div>
                           </th>
-                          <td data-label="Status">
+                          <td data-label="Status" className={adminTable.cell}>
                             <Chip color={article.published ? "success" : "default"} variant="soft" size="sm">
                               <Chip.Label>{article.published ? "Published" : "Draft"}</Chip.Label>
                             </Chip>
                           </td>
-                          <td data-label="Author">
-                            {article.authorName ?? <span className={styles.rowDetail}>Not recorded</span>}
+                          <td data-label="Author" className={adminTable.cell}>
+                            {article.authorName ?? <span className={adminStyles.rowDetail}>Not recorded</span>}
                           </td>
-                          <td data-label="First published">
+                          <td data-label="First published" className={adminTable.cell}>
                             {article.publishedAt
                               ? <time dateTime={article.publishedAt.toISOString()}>{dateFormat.format(article.publishedAt)}</time>
-                              : <span className={styles.rowDetail}>Not recorded</span>}
+                              : <span className={adminStyles.rowDetail}>Not recorded</span>}
                           </td>
-                          <td data-label="Last edited">
+                          <td data-label="Last edited" className={adminTable.cell}>
                             <time dateTime={article.updated.toISOString()}>{dateFormat.format(article.updated)}</time>
-                            <span className={styles.rowDetail}>{article.lastEditorName ?? "Editor not recorded"}</span>
+                            <span className={adminStyles.rowDetail}>{article.lastEditorName ?? "Editor not recorded"}</span>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 ) : (
-                  <div className={styles.emptyResults}>
+                  <div className={adminStyles.emptyResults}>
                     <p>{search
                       ? "No articles match this search."
                       : current === "all" ? "No articles yet." : current === "draft" ? "No drafts." : "No published articles."}</p>
-                    {search && <Link className={styles.backLink} href={statusHref(current, "")} prefetch={false}>Clear search</Link>}
+                    {search && <Link className={adminStyles.backLink} href={statusHref(current, "")} prefetch={false}>Clear search</Link>}
                   </div>
                 )}
               </div>

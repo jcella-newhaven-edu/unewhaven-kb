@@ -7,6 +7,7 @@ import { queryRows } from "@/lib/postgres";
 export type Topic = {
   slug: string;
   title: string;
+  icon: string;
   description: string;
   order: number; // lower numbers are listed first, among topics with the same parent
   parentSlug: string | null; // null for a top-level topic
@@ -17,7 +18,7 @@ export type TopicWithCount = Topic & { articleCount: number };
 /** A top-level topic with its subtopics. articleCount includes the subtopics' articles. */
 export type TopicTree = TopicWithCount & { subtopics: TopicWithCount[] };
 
-const topicFields = `slug, title, description, sort_order AS "order", NULLIF(parent_slug, '') AS "parentSlug"`;
+const topicFields = `slug, title, icon, description, sort_order AS "order", NULLIF(parent_slug, '') AS "parentSlug"`;
 
 /** One topic or subtopic, or null if it doesn't exist. */
 export async function getTopic(slug: string) {

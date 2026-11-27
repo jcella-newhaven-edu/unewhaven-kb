@@ -28,7 +28,6 @@
 
 /* HeroUI and the documentation layout share the UNH palette. */
 :root {
-  color-scheme: light;
   --background: #ffffff;
   --foreground: var(--color-unh-text);
   --accent: var(--color-unh-tertiary);
@@ -45,11 +44,12 @@
   --kb-highlight: #eaf0fb;
   --kb-hero-start: var(--color-unh-primary);
   --kb-hero-end: #233b60;
-  --kb-header-height: 4.625rem;
+  --kb-theme-transition:
+    --background, --foreground, --surface, --border, --kb-heading, --kb-muted,
+    --kb-line, --kb-panel, --kb-hover, --kb-highlight, --kb-hero-start, --kb-hero-end;
 }
 
 .dark {
-  color-scheme: dark;
   --background: var(--color-unh-deep);
   --foreground: #ecebef;
   --surface: #222225;
@@ -142,16 +142,6 @@
   initial-value: #233b60;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  html[data-theme-transition] {
-    transition-property:
-      --background, --foreground, --surface, --border, --kb-heading, --kb-muted,
-      --kb-line, --kb-panel, --kb-hover, --kb-highlight, --kb-hero-start, --kb-hero-end;
-    transition-duration: 260ms;
-    transition-timing-function: ease-in-out;
-  }
-}
-
 /* Use UNH's Avenir when installed and the locally served preview font otherwise. */
 @theme inline {
   --font-sans: "Avenir Next", Avenir, var(--font-kb-geist), ui-sans-serif, system-ui, sans-serif;
@@ -164,21 +154,6 @@
   --color-kb-highlight: var(--kb-highlight);
 }
 
-html {
-  scroll-padding-top: calc(var(--kb-header-height) + 1rem);
-}
-
-.kb-shell {
-  width: min(76rem, calc(100% - 4rem));
-  margin-inline: auto;
-}
-
-@media (max-width: 48rem) {
-  :root {
-    --kb-header-height: 4rem;
-  }
-
-  .kb-shell {
-    width: calc(100% - 1.875rem);
-  }
+@utility kb-shell {
+  @apply mx-auto w-[min(76rem,calc(100%_-_4rem))] max-[48rem]:w-[calc(100%_-_1.875rem)];
 }
