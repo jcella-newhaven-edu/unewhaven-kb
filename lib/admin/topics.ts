@@ -6,6 +6,7 @@ import { queryRows } from "@/lib/postgres";
 export type ManagedTopic = {
   slug: string;
   title: string;
+  icon: string;
   description: string;
   sortOrder: number;
   parentSlug: string | null;
@@ -20,7 +21,7 @@ export async function listManagedTopics(): Promise<ManagedTopic[]> {
   if (session?.role !== "admin" && session?.role !== "editor") redirect("/admin");
 
   return queryRows<ManagedTopic>(`
-    SELECT t.slug, t.title, t.description, t.sort_order AS "sortOrder",
+    SELECT t.slug, t.title, t.icon, t.description, t.sort_order AS "sortOrder",
            NULLIF(t.parent_slug, '') AS "parentSlug", p.title AS "parentTitle",
            COALESCE(a.article_count, 0) AS "articleCount", COALESCE(c.child_count, 0) AS "childCount",
            t.xmin::text AS "updatedToken"

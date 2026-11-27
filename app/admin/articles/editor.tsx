@@ -8,10 +8,9 @@ import { Alert, Button, Description, FieldError, Form, Input, InputGroup, Label,
 import Link from "next/link";
 import { createArticle, updateArticle } from "@/lib/admin/actions";
 import { slugFromTitle } from "@/lib/admin/slug";
+import { adminStyles as styles } from "../admin-styles";
 import { EditorArticleImage, EditorArticleTab, EditorArticleTabs } from "./editor-nodes";
 import FormattingToolbar from "./formatting-toolbar";
-import styles from "../admin.module.css";
-import editorStyles from "./editor.module.css";
 
 type Topic = { slug: string; title: string; parentSlug: string | null };
 type ExistingArticle = {
@@ -27,6 +26,15 @@ type ExistingArticle = {
 };
 
 const emptyDocument: JSONContent = { type: "doc", content: [{ type: "paragraph" }] };
+const fieldHint = "text-[.8125rem] leading-[1.5] text-kb-muted";
+const editorSurface = [
+  "[&_.tiptap]:min-h-60 min-[58rem]:[&_.tiptap]:min-h-88 [&_.tiptap]:p-4 [&_.tiptap]:leading-[1.65] [&_.tiptap]:text-kb-heading [&_.tiptap]:[overflow-wrap:anywhere]",
+  "[&_.tiptap:focus-visible]:-outline-offset-2 [&_.tiptap:focus-visible]:outline-2 [&_.tiptap:focus-visible]:outline-focus",
+  "[&_:is(h2,h3)]:mt-4 [&_:is(h2,h3)]:mb-1.5 [&_:is(h2,h3)]:font-bold [&_:is(h2,h3)]:leading-[1.3] [&_h2]:text-[1.375rem] [&_h3]:text-lg",
+  "[&_p+p]:mt-2 [&_:is(ul,ol)]:my-1.5 [&_:is(ul,ol)]:ps-6 [&_ul]:list-disc [&_ol]:list-decimal",
+  "[&_blockquote]:border-s-[3px] [&_blockquote]:border-kb-line [&_blockquote]:ps-[.8rem]",
+  "[&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-kb-panel [&_pre]:p-3 [&_a]:text-link [&_a]:underline",
+].join(" ");
 
 const extensions = [
   StarterKit.configure({
@@ -117,7 +125,7 @@ export default function AdminArticleForm({
   return (
     <Form
       action={save}
-      className={editorStyles.articleForm}
+      className="grid gap-5"
       aria-busy={saving}
       validationBehavior="aria"
       render={(props) => <form {...props} onResetCapture={(event) => event.preventDefault()} />}
@@ -134,11 +142,14 @@ export default function AdminArticleForm({
       )}
       {body && <input type="hidden" name="body" value={JSON.stringify(body)} />}
 
-      <fieldset className={editorStyles.workspace} disabled={saving}>
-        <div className={editorStyles.contentPanel}>
+      <fieldset
+        className="grid min-w-0 grid-cols-1 items-start gap-5 min-[58rem]:grid-cols-[minmax(0,1fr)_minmax(15rem,19rem)]"
+        disabled={saving}
+      >
+        <div className="grid min-w-0 gap-4.5 rounded-[.875rem] border border-kb-line bg-background p-[clamp(1rem,2.3vw,1.5rem)]">
           <TextField className={styles.field} name="title" value={title} onChange={setTitle} isRequired isInvalid={!!errors.title}>
             <Label>Title</Label>
-            <Input fullWidth maxLength={160} className={editorStyles.titleInput} />
+            <Input fullWidth maxLength={160} className="min-h-12 text-lg font-[650]" />
             {errors.title && <FieldError>{errors.title}</FieldError>}
           </TextField>
 
@@ -151,9 +162,9 @@ export default function AdminArticleForm({
           <BodyField editor={editor} labelId={bodyLabelId} error={errors.body} onUploadChange={setUploading} />
         </div>
 
-        <aside className={editorStyles.settingsRail} aria-labelledby={settingsId}>
-          <div className={editorStyles.settingsPanel}>
-            <h2 id={settingsId}>Article settings</h2>
+        <aside className="grid min-w-0 gap-4" aria-labelledby={settingsId}>
+          <div className="grid min-w-0 gap-4 rounded-[.875rem] border border-kb-line bg-kb-panel p-4.5">
+            <h2 id={settingsId} className="text-[1.0625rem] font-bold tracking-[-.025em] text-kb-heading">Article settings</h2>
             <div className={styles.field}>
               <label htmlFor={statusId}>Publication status</label>
               <select
@@ -192,12 +203,16 @@ export default function AdminArticleForm({
             </div>
 
             {topics.length > 1 && (
-              <fieldset className={editorStyles.extraTopics} aria-describedby={errors.additionalTopicSlug ? `${extraTopicsId}-error` : undefined}>
-                <legend>Additional topics</legend>
-                <div className={editorStyles.topicChoices}>
+              <fieldset className="grid min-w-0 gap-1.5" aria-describedby={errors.additionalTopicSlug ? `${extraTopicsId}-error` : undefined}>
+                <legend className="pb-1.5 text-sm font-[650] text-kb-heading">Additional topics</legend>
+                <div className="grid max-h-44 divide-y divide-kb-line overflow-y-auto rounded-lg border border-kb-line bg-background px-2.5 py-1">
                   {topics.map((item) => (
-                    <label key={item.slug}>
+                    <label
+                      key={item.slug}
+                      className="flex items-baseline gap-2 py-1.5 text-[.8125rem] leading-[1.4] text-kb-heading [overflow-wrap:anywhere] has-[:disabled]:text-kb-muted"
+                    >
                       <input
+                        className="flex-none accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                         type="checkbox"
                         name="additionalTopicSlug"
                         value={item.slug}
@@ -225,21 +240,21 @@ export default function AdminArticleForm({
               isInvalid={!!errors.slug}
             >
               <Label>Article URL slug</Label>
-              <InputGroup fullWidth className={editorStyles.slugGroup}>
+              <InputGroup fullWidth className="min-w-0 max-w-full [&_input]:min-w-0 [&_input]:flex-1">
                 <InputGroup.Prefix aria-hidden="true">/articles/</InputGroup.Prefix>
                 <InputGroup.Input maxLength={96} autoCapitalize="none" autoComplete="off" spellCheck={false} />
               </InputGroup>
-              <Description className={editorStyles.hint}>
+              <Description className={fieldHint}>
                 Use lowercase letters, numbers, and hyphens.
                 {article?.published && " Changing the slug breaks links to the current URL."}
               </Description>
               {errors.slug && <FieldError>{errors.slug}</FieldError>}
               {article && (
-                <div className={`${styles.slug} ${editorStyles.currentUrl}`}>
-                  <span>Current URL</span>
+                <div className="mt-0.5 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-kb-heading [overflow-wrap:anywhere]">
+                  <span className="text-sm font-[650]">Current URL</span>
                   {article.published
-                    ? <Link href={`/articles/${encodeURIComponent(article.slug)}`}>/articles/{article.slug}</Link>
-                    : <code>/articles/{article.slug}</code>}
+                    ? <Link href={`/articles/${encodeURIComponent(article.slug)}`} className={`min-w-0 ${styles.backLink}`}>/articles/{article.slug}</Link>
+                    : <code className="text-sm text-kb-muted">/articles/{article.slug}</code>}
                 </div>
               )}
             </TextField>
@@ -248,7 +263,7 @@ export default function AdminArticleForm({
         </aside>
       </fieldset>
 
-      <div className={`${styles.formActions} ${editorStyles.actions}`}>
+      <div className={`${styles.formActions} px-0.5`}>
         <Button
           type="submit"
           variant="primary"
@@ -287,12 +302,12 @@ function BodyField({
   return (
     <div className={styles.field}>
       <span id={labelId}>Article body</span>
-      <p id={helpId} className={editorStyles.hint}>Use headings for sections and lists for steps.</p>
-      <div className={`${styles.editor} ${editorStyles.editor}`}>
+      <p id={helpId} className={fieldHint}>Use headings for sections and lists for steps.</p>
+      <div className={`${styles.editor} bg-background`}>
         {editor ? (
           <>
             <FormattingToolbar editor={editor} onUploadChange={onUploadChange} />
-            <EditorContent editor={editor} className={editorStyles.editorSurface} />
+            <EditorContent editor={editor} className={editorSurface} />
           </>
         ) : <p className={styles.editorLoading} role="status">Loading editor…</p>}
       </div>

@@ -13,7 +13,10 @@ import {
 } from "@tiptap/react";
 import { ArticleImage, ArticleTab, ArticleTabs } from "@/components/article-extensions";
 import { articleImageAltMaxLength, validArticleImageSrc } from "@/lib/article-media";
-import styles from "./editor.module.css";
+
+const nodePanel = "my-3 overflow-hidden rounded-[0.625rem] border border-kb-line bg-kb-panel";
+const nodeToolbar = "flex flex-wrap items-center gap-2 px-2.5 py-2 text-[0.8125rem] text-kb-heading";
+const nodeField = `${nodeToolbar} [&>input]:min-w-32 [&>input]:flex-1 [&>label]:font-[650]`;
 
 export function articleTab(label: string): JSONContent {
   return { type: "articleTab", attrs: { label }, content: [{ type: "paragraph" }] };
@@ -25,12 +28,12 @@ function ImageView({ node, updateAttributes, deleteNode, selected }: NodeViewPro
   const altText = typeof alt === "string" ? alt : "";
 
   return (
-    <NodeViewWrapper as="figure" className={styles.editorImage} data-selected={selected || undefined}>
+    <NodeViewWrapper as="figure" className={`${nodePanel} data-[selected]:outline-2 data-[selected]:outline-offset-2 data-[selected]:outline-focus`} data-selected={selected || undefined}>
       {validArticleImageSrc(src) && (
         // eslint-disable-next-line @next/next/no-img-element -- Editorial image URLs may come from any HTTPS origin.
-        <img src={src} alt={altText} loading="lazy" referrerPolicy="no-referrer" />
+        <img src={src} alt={altText} loading="lazy" referrerPolicy="no-referrer" className="mx-auto block max-h-96 max-w-full object-contain" />
       )}
-      <div className={styles.nodeControls} contentEditable={false}>
+      <div className={nodeField} contentEditable={false}>
         <label htmlFor={altId}>Alt text</label>
         <Input
           id={altId}
@@ -57,15 +60,15 @@ function TabsView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   }
 
   return (
-    <NodeViewWrapper className={styles.tabGroup}>
-      <div className={styles.tabGroupHeader} contentEditable={false}>
-        <span>Tabbed content</span>
+    <NodeViewWrapper className={nodePanel}>
+      <div className={nodeToolbar} contentEditable={false}>
+        <span className="me-auto font-bold">Tabbed content</span>
         <Button type="button" variant="ghost" size="sm" isDisabled={node.childCount >= 8} onPress={addTab}>
-          <PlusIcon aria-hidden="true" className={styles.icon} /> Add tab
+          <PlusIcon aria-hidden="true" className="size-4 shrink-0" /> Add tab
         </Button>
         <RemoveNodeButton label="Remove tab group" remove={deleteNode} />
       </div>
-      <NodeViewContent className={styles.tabPanels} />
+      <NodeViewContent className="px-2.5 pb-2.5" />
     </NodeViewWrapper>
   );
 }
@@ -82,8 +85,8 @@ function TabView({ editor, node, getPos, updateAttributes, deleteNode }: NodeVie
   });
 
   return (
-    <NodeViewWrapper className={styles.editorTab}>
-      <div className={styles.nodeControls} contentEditable={false}>
+    <NodeViewWrapper className="overflow-hidden rounded-lg border border-kb-line bg-background not-first:mt-2">
+      <div className={nodeField} contentEditable={false}>
         <label htmlFor={labelId}>Tab title</label>
         <Input
           id={labelId}
@@ -94,7 +97,7 @@ function TabView({ editor, node, getPos, updateAttributes, deleteNode }: NodeVie
         />
         <RemoveNodeButton label="Remove tab" remove={deleteNode} disabled={!canRemove} />
       </div>
-      <NodeViewContent className={styles.editorTabContent} />
+      <NodeViewContent className="min-h-11 border-t border-kb-line px-3 pt-1.5 pb-2.5" />
     </NodeViewWrapper>
   );
 }
@@ -114,7 +117,7 @@ function RemoveNodeButton({
 }) {
   return (
     <Button type="button" variant="ghost" size="sm" isIconOnly isDisabled={disabled} aria-label={label} onPress={remove}>
-      <TrashIcon aria-hidden="true" className={styles.icon} />
+      <TrashIcon aria-hidden="true" className="size-4 shrink-0" />
     </Button>
   );
 }

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { listAdminTopics } from "@/lib/admin/articles";
 import { AdminBackLink, AdminGate, AdminHeader, AdminPage } from "../../shell";
 import AdminArticleForm from "../editor";
-import styles from "../../admin.module.css";
+import { adminStyles as styles } from "../../admin-styles";
 
 export default function NewAdminArticle() {
   return (

@@ -1,8 +1,8 @@
 import Link from "next/link";
+import TopicIcon from "@/components/TopicIcon";
 import { listManagedTopics } from "@/lib/admin/topics";
 import { AdminCreateLink, AdminGate, AdminHeader, AdminPage } from "../shell";
-import styles from "../admin.module.css";
-import topicStyles from "./topics.module.css";
+import { adminStyles, adminTable } from "../admin-styles";
 
 export default function AdminTopics({
   searchParams,
@@ -17,41 +17,46 @@ export default function AdminTopics({
         return (
           <>
             <AdminHeader title="Topics" session={session} section="topics" actions={<AdminCreateLink section="topics" />} />
-            {query.deleted === "1" && <p className={styles.notice} role="status">Topic deleted.</p>}
+            {query.deleted === "1" && <p className={adminStyles.notice} role="status">Topic deleted.</p>}
 
-            <div className={styles.directory}>
+            <div className={adminStyles.directory}>
               {topics.length ? (
-                <table className={`${styles.table} ${topicStyles.table}`} aria-label="Topics">
-                  <thead>
+                <table className={adminTable.table} aria-label="Topics">
+                  <thead className={adminTable.head}>
                     <tr>
-                      <th scope="col">Topic</th>
-                      <th scope="col">Parent topic</th>
-                      <th scope="col">Articles</th>
-                      <th scope="col">Subtopics</th>
-                      <th scope="col">Sort order</th>
+                      <th scope="col" className={`${adminTable.column} w-[40%] rounded-ss-xl`}>Topic</th>
+                      <th scope="col" className={`${adminTable.column} w-[24%]`}>Parent topic</th>
+                      <th scope="col" className={adminTable.column}>Articles</th>
+                      <th scope="col" className={adminTable.column}>Subtopics</th>
+                      <th scope="col" className={`${adminTable.column} rounded-se-xl`}>Sort order</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className={adminTable.body}>
                     {topics.map((topic) => (
-                      <tr key={topic.slug}>
-                        <th scope="row">
-                          <div className={styles.rowIdentity}>
-                            <Link href={`/admin/topics/${encodeURIComponent(topic.slug)}`} prefetch={false}>{topic.title}</Link>
-                            {topic.description && <span className={styles.rowDetail}>{topic.description}</span>}
+                      <tr key={topic.slug} className={adminTable.row}>
+                        <th scope="row" className={adminTable.name}>
+                          <div className="flex items-start gap-2.5">
+                            <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-md bg-kb-highlight text-kb-heading">
+                              <TopicIcon icon={topic.icon} className="size-4.5" />
+                            </span>
+                            <div className="grid min-w-0 gap-[0.2rem]">
+                              <Link href={`/admin/topics/${encodeURIComponent(topic.slug)}`} className={adminStyles.rowLink} prefetch={false}>{topic.title}</Link>
+                              {topic.description && <span className={adminStyles.rowDetail}>{topic.description}</span>}
+                            </div>
                           </div>
                         </th>
-                        <td data-label="Parent topic">
-                          {topic.parentSlug ? topic.parentTitle || topic.parentSlug : <span className={styles.rowDetail}>Top level</span>}
+                        <td data-label="Parent topic" className={adminTable.cell}>
+                          {topic.parentSlug ? topic.parentTitle || topic.parentSlug : <span className={adminStyles.rowDetail}>Top level</span>}
                         </td>
-                        <td data-label="Articles">{topic.articleCount}</td>
-                        <td data-label="Subtopics">{topic.childCount}</td>
-                        <td data-label="Sort order">{topic.sortOrder}</td>
+                        <td data-label="Articles" className={adminTable.cell}>{topic.articleCount}</td>
+                        <td data-label="Subtopics" className={adminTable.cell}>{topic.childCount}</td>
+                        <td data-label="Sort order" className={adminTable.cell}>{topic.sortOrder}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               ) : (
-                <p className={styles.emptyResults}>No topics yet.</p>
+                <p className={adminStyles.emptyResults}>No topics yet.</p>
               )}
             </div>
           </>

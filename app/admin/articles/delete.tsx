@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { Alert, AlertDialog, Button } from "@heroui/react";
 import { deleteArticle } from "@/lib/admin/actions";
-import styles from "../admin.module.css";
+import { adminStyles as styles } from "../admin-styles";
 
 export function DeleteArticle({
   slug,

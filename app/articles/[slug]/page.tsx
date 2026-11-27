@@ -6,7 +6,6 @@ import { getArticle, getArticleSlugs, readingMinutes } from "@/lib/data/articles
 import { getTopicTrail } from "@/lib/data/topics";
 import ArticleBody, { type ArticleHeading, prepareArticleBody } from "@/components/ArticleBody";
 import TopicSidebar from "@/components/TopicSidebar";
-import styles from "./article.module.css";
 
 // Prerender every published article at build time. New ones are rendered on first visit.
 export async function generateStaticParams() {
@@ -27,9 +26,16 @@ const dateFormat = new Intl.DateTimeFormat("en-US", {
 
 function OutlineLinks({ headings }: { headings: ArticleHeading[] }) {
   return (
-    <ul className={styles.outlineLinks}>
+    <ul className="m-0 list-none p-0">
       {headings.map(({ id, title }) => (
-        <li key={id}><a href={`#${encodeURIComponent(id)}`}>{title}</a></li>
+        <li key={id}>
+          <a
+            href={`#${encodeURIComponent(id)}`}
+            className="block py-[0.3125rem] text-[0.8125rem] leading-[1.45] wrap-anywhere text-kb-muted hover:text-link hover:underline"
+          >
+            {title}
+          </a>
+        </li>
       ))}
     </ul>
   );
@@ -47,7 +53,9 @@ async function ArticleContent({ params }: Pick<PageProps<"/articles/[slug]">, "p
 
   return (
     <>
-      <Breadcrumbs className={styles.breadcrumbs}>
+      <Breadcrumbs
+        className="mb-[1.8rem] flex-wrap gap-x-2 gap-y-[0.35rem] text-[0.8125rem] text-kb-muted max-[791px]:mb-6 [&_[data-slot=link]]:text-[length:inherit] [&_[data-slot=link]]:text-inherit [&_[data-slot=breadcrumbs-item]]:min-w-0 [&_[data-slot=breadcrumbs-item]]:shrink [&_[data-slot=breadcrumbs-item]]:justify-start [&_[data-slot=breadcrumbs-item]]:wrap-anywhere [&_:is([aria-current=page],[data-current=true])]:font-[650] [&_:is([aria-current=page],[data-current=true])]:text-kb-heading"
+      >
         <Breadcrumbs.Item href="/">Home</Breadcrumbs.Item>
         {trail.map((topic) => (
           <Breadcrumbs.Item key={topic.slug} href={`/topics/${topic.slug}`}>
@@ -57,21 +65,27 @@ async function ArticleContent({ params }: Pick<PageProps<"/articles/[slug]">, "p
         <Breadcrumbs.Item>{article.title}</Breadcrumbs.Item>
       </Breadcrumbs>
 
-      <div className={styles.readingGrid}>
-        <article className={styles.guide}>
-          <h1>{article.title}</h1>
-          {article.summary && <p className={styles.intro}>{article.summary}</p>}
+      <div
+        className="grid grid-cols-[var(--article-sidebar-width,0px)_minmax(0,1fr)_var(--article-outline-width,0px)] items-start [grid-template-areas:'topics_article_outline'] min-[791px]:has-[[data-article-sidebar]]:[--article-sidebar-width:13.1875rem] min-[1071px]:has-[[data-article-sidebar]]:[--article-sidebar-width:15.4375rem] min-[1071px]:has-[[data-article-outline]]:[--article-outline-width:12.625rem]"
+      >
+        <article className="min-w-0 max-w-[49rem] pb-[2.375rem] wrap-anywhere [grid-area:article] min-[791px]:pe-3">
+          <h1 className="m-0 text-[clamp(2rem,3.15vw,2.9375rem)] leading-[1.07] font-[750] tracking-[-0.045em] text-kb-heading">
+            {article.title}
+          </h1>
+          {article.summary && (
+            <p className="mt-3 max-w-[40rem] text-[1.0625rem] leading-[1.55] text-kb-muted">{article.summary}</p>
+          )}
           {hasOutline && (
-            <details className={styles.mobileOutline}>
-              <summary>On this page</summary>
-              <OutlineLinks headings={headings} />
+            <details className="mt-[1.125rem] rounded-lg border border-kb-line bg-kb-panel px-[0.8125rem] py-2.5 min-[1071px]:hidden">
+              <summary className="cursor-pointer text-sm font-[650] text-kb-heading">On this page</summary>
+              <div className="mt-1.5 ps-[1.0625rem]"><OutlineLinks headings={headings} /></div>
             </details>
           )}
 
-          <div className={styles.prose}>
+          <div className="text-[0.9375rem] leading-[1.6] text-kb-muted [&>:first-child]:mt-[1.5625rem]">
             <ArticleBody body={content} />
           </div>
-          <p className={styles.metadata}>
+          <p className="mt-6 flex flex-wrap gap-[0.45rem] text-xs text-kb-muted">
             <span>Updated <time dateTime={article.updated.toISOString()}>{dateFormat.format(article.updated)}</time></span>
             <span aria-hidden="true">·</span>
             <span>{readingMinutes(article.bodyText)} min read</span>
@@ -80,9 +94,12 @@ async function ArticleContent({ params }: Pick<PageProps<"/articles/[slug]">, "p
 
         <TopicSidebar rootSlug={trail[0]?.slug} currentSlug={slug} />
         {hasOutline && (
-          <aside className={styles.outline}>
+          <aside
+            data-article-outline=""
+            className="sticky top-[calc(var(--kb-header-height)+1.625rem)] ms-9 hidden max-h-[calc(100dvh-var(--kb-header-height)-3.25rem)] overflow-y-auto border-s border-kb-line pt-[0.3125rem] pb-[0.8125rem] ps-3.5 scrollbar-thin [grid-area:outline] min-[1071px]:block"
+          >
             <nav aria-labelledby="article-outline">
-              <h2 id="article-outline" className={styles.railHeading}>On this page</h2>
+              <h2 id="article-outline" className="mb-2 text-sm leading-[1.4] font-[720] text-kb-heading">On this page</h2>
               <OutlineLinks headings={headings} />
             </nav>
           </aside>
@@ -94,8 +111,8 @@ async function ArticleContent({ params }: Pick<PageProps<"/articles/[slug]">, "p
 
 export default function ArticlePage({ params }: PageProps<"/articles/[slug]">) {
   return (
-    <main className={`kb-shell ${styles.page}`}>
-      <Suspense fallback={<p className={styles.loading}>Loading article…</p>}>
+    <main className="kb-shell flex-1 pt-[1.625rem] pb-[4.25rem] max-[791px]:pt-[1.125rem]">
+      <Suspense fallback={<p className="text-kb-muted">Loading article…</p>}>
         <ArticleContent params={params} />
       </Suspense>
     </main>

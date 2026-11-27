@@ -115,6 +115,8 @@ Open `/admin` to sign in with Microsoft. The knowledge base creates or updates t
 
 Article URLs are set in the editor. When an article URL changes, update links that used its previous URL. Use **Topics** in the admin navigation to manage topics and subtopics. Before deleting a topic, reassign its articles and move or delete its subtopics.
 
+On each topic or subtopic, choose an icon for its public listing. Existing topics use the open-book icon until an editor or administrator chooses another.
+
 An article has one primary topic for its breadcrumb and can also appear under additional topics or subtopics. The editor supports labeled content tabs, HTTPS or site-relative image links, and PNG, JPEG, GIF, and WebP uploads up to 5 MiB. Uploads are stored in PostgreSQL and become public when used in a published article. The admin article pages show the author, first recorded publication, and last edit when available. Older records can have unknown author or publication dates.
 
 In Microsoft Entra, create a single-tenant app registration. Add a **Web** redirect URI ending in `/api/admin/auth/callback` and create the two app roles above with **Users/Groups** as the allowed member type. Assign users or groups to those roles in the associated enterprise application. For separate dev and prod stacks, register their exact redirect URIs and use the matching origin in each stack. [Microsoft Entra app role setup](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-app-roles-in-apps)
@@ -138,7 +140,8 @@ Apply these migrations to an existing database before building the app. They can
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
   -f db/migrations/001-admin-auth.sql \
   -f db/migrations/002-article-topics-metadata.sql \
-  -f db/migrations/003-article-images.sql
+  -f db/migrations/003-article-images.sql \
+  -f db/migrations/004-topic-icons.sql
 ```
 
 For an existing Compose deployment, rebuild the database image, run the migrations on its existing volume, and then rebuild the app. Use the environment file and project name of the running stack.
@@ -149,7 +152,8 @@ docker compose --env-file .env.dev -p unewhaven-kb-dev exec -T unewhaven-kb-db s
   'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
     -f /docker-entrypoint-initdb.d/03-admin-auth.sql \
     -f /docker-entrypoint-initdb.d/04-article-topics-metadata.sql \
-    -f /docker-entrypoint-initdb.d/05-article-images.sql'
+    -f /docker-entrypoint-initdb.d/05-article-images.sql \
+    -f /docker-entrypoint-initdb.d/06-topic-icons.sql'
 docker compose --env-file .env.dev -p unewhaven-kb-dev up -d --build --wait
 ```
 

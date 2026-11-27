@@ -9,11 +9,11 @@ import {
   articleImageMaxBytes,
   validArticleImageSrc,
 } from "@/lib/article-media";
-import adminStyles from "../admin.module.css";
-import styles from "./editor.module.css";
+import { adminStyles } from "../admin-styles";
 
 const imageTypes = articleImageAccept.split(",");
 const limitMiB = articleImageMaxBytes / (1024 * 1024);
+const imageFieldLabel = "text-[0.8125rem] font-[650] text-kb-heading";
 
 export default function ImagePanel({
   editor,
@@ -117,7 +117,7 @@ export default function ImagePanel({
   return (
     <div
       id={id}
-      className={styles.imagePanel}
+      className="grid gap-2 border-b border-kb-line bg-kb-panel p-3.5"
       aria-busy={uploading}
       onKeyDown={(event) => {
         if (event.key === "Enter" && event.target instanceof HTMLInputElement && event.target.type !== "file") {
@@ -130,11 +130,11 @@ export default function ImagePanel({
         }
       }}
     >
-      <div className={styles.imageModes} role="group" aria-label="Image source">
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Image source">
         <Button type="button" size="sm" variant={mode === "url" ? "secondary" : "ghost"} aria-pressed={mode === "url"} onPress={() => selectMode("url")} isDisabled={uploading}>Use URL</Button>
         <Button type="button" size="sm" variant={mode === "upload" ? "secondary" : "ghost"} aria-pressed={mode === "upload"} onPress={() => selectMode("upload")} isDisabled={uploading}>Upload file</Button>
       </div>
-      <label htmlFor={`${formId}-source`}>{mode === "url" ? "Image URL" : "Image file"}</label>
+      <label htmlFor={`${formId}-source`} className={imageFieldLabel}>{mode === "url" ? "Image URL" : "Image file"}</label>
       {mode === "url" ? (
         <Input
           ref={sourceInput}
@@ -150,17 +150,17 @@ export default function ImagePanel({
           <input
             ref={sourceInput}
             id={`${formId}-source`}
-            className={styles.fileInput}
+            className="min-w-0 max-w-full text-[0.8125rem] text-kb-heading file:me-2 file:min-h-9 file:cursor-pointer file:rounded-md file:border file:border-kb-line file:bg-background file:px-2.5 file:font-[650] file:text-kb-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             type="file"
             accept={articleImageAccept}
             aria-describedby={`${formId}-formats`}
             disabled={uploading}
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           />
-          <p id={`${formId}-formats`} className={styles.hint}>PNG, JPEG, GIF, or WebP. Maximum {limitMiB} MiB.</p>
+          <p id={`${formId}-formats`} className="text-[0.8125rem] leading-normal text-kb-muted">PNG, JPEG, GIF, or WebP. Maximum {limitMiB} MiB.</p>
         </>
       )}
-      <label htmlFor={`${formId}-alt`}>Alt text</label>
+      <label htmlFor={`${formId}-alt`} className={imageFieldLabel}>Alt text</label>
       <Input
         id={`${formId}-alt`}
         value={alt}
@@ -170,7 +170,7 @@ export default function ImagePanel({
         onChange={(event) => setAlt(event.target.value)}
       />
       {error && <p className={adminStyles.error} role="alert">{error}</p>}
-      <div className={styles.panelActions}>
+      <div className="mt-0.5 flex flex-wrap gap-1.5">
         <Button size="sm" type="button" variant="primary" isPending={uploading} onPress={() => void addImage()}>
           {uploading ? "Uploading…" : "Insert image"}
         </Button>
