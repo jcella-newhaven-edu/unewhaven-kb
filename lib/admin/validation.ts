@@ -23,7 +23,7 @@ const NEW_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const VERSION = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
 const BLOCKS = [
   "paragraph", "heading", "bulletList", "orderedList", "blockquote", "codeBlock", "horizontalRule",
-  "image", "articleTabs",
+  "image", "articleTabs", "articleAccordion",
 ];
 const INLINE = ["text", "hardBreak"];
 const CHILDREN: Record<string, string[]> = {
@@ -37,13 +37,18 @@ const CHILDREN: Record<string, string[]> = {
   codeBlock: ["text"],
   articleTabs: ["articleTab"],
   articleTab: BLOCKS,
+  articleAccordion: ["articleAccordionItem"],
+  articleAccordionItem: BLOCKS,
   image: [],
   horizontalRule: [],
   hardBreak: [],
   text: [],
 };
 const MARKS = new Set(["bold", "italic", "underline", "strike", "code", "link"]);
-const TEXT_BLOCKS = new Set(["doc", "listItem", "bulletList", "orderedList", "blockquote", "articleTabs", "articleTab"]);
+const TEXT_BLOCKS = new Set([
+  "doc", "listItem", "bulletList", "orderedList", "blockquote",
+  "articleTabs", "articleTab", "articleAccordion", "articleAccordionItem",
+]);
 
 function formString(form: FormData, name: string): string | null {
   const fields = form.getAll(name);
@@ -228,13 +233,24 @@ export function parseArticleBody(raw: string | null): ArticleBody {
     if (type === "articleTabs" && (!node.content || node.content.length < 2 || node.content.length > 8)) {
       throw new Error("Use between two and eight tabs in each tab group.");
     }
-    if (type === "articleTab") {
-      const label = typeof attrs.label === "string" ? attrs.label.trim() : "";
-      if (!label || label.length > 80 || !label.isWellFormed() || hasControlCharacter(label)) {
-        throw new Error("Enter a tab label between 1 and 80 characters.");
+    if (type === "articleAccordion" && (!node.content?.length || node.content.length > 8)) {
+      throw new Error("Use between one and eight sections in each accordion.");
+    }
+    if (type === "articleTab" || type === "articleAccordionItem") {
+      const tab = type === "articleTab";
+      const attr = tab ? "label" : "title";
+      const name = typeof attrs[attr] === "string" ? attrs[attr].trim() : "";
+      if (!name || name.length > 80 || !name.isWellFormed() || hasControlCharacter(name)) {
+        throw new Error(tab
+          ? "Enter a tab label between 1 and 80 characters."
+          : "Enter an accordion section title between 1 and 80 characters.");
       }
-      if (!node.content?.length) throw new Error("Include a paragraph or another block in each tab.");
-      node.attrs = { label };
+      if (!node.content?.length) {
+        throw new Error(tab
+          ? "Include a paragraph or another block in each tab."
+          : "Include a paragraph or another block in each accordion section.");
+      }
+      node.attrs = { [attr]: name };
     }
     if (type === "listItem" && node.content?.[0]?.type !== "paragraph") {
       throw new Error("The article body contains an invalid list item.");
@@ -250,7 +266,9 @@ export function parseArticleBody(raw: string | null): ArticleBody {
     if (node.type === "image") return node.attrs?.alt ?? "";
     const separator = TEXT_BLOCKS.has(node.type ?? "") ? "\n" : "";
     const content = node.text ?? node.content?.map(extractText).join(separator) ?? "";
-    return node.type === "articleTab" ? `${node.attrs?.label}\n${content}` : content;
+    if (node.type === "articleTab") return `${node.attrs?.label}\n${content}`;
+    if (node.type === "articleAccordionItem") return `${node.attrs?.title}\n${content}`;
+    return content;
   }
 
   const body = readNode(document, ["doc"], 0);

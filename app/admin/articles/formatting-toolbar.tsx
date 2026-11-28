@@ -13,6 +13,7 @@ import {
   ListBulletIcon,
   NumberedListIcon,
   PhotoIcon,
+  QueueListIcon,
   RectangleStackIcon,
   StrikethroughIcon,
   UnderlineIcon,
@@ -21,7 +22,7 @@ import { Button, Dropdown, Input, ToggleButton, Toolbar, Tooltip } from "@heroui
 import { useEditorState, type Editor } from "@tiptap/react";
 import { validHref } from "@/lib/admin/validation";
 import { adminStyles } from "../admin-styles";
-import { articleTab } from "./editor-nodes";
+import { articlePanel, type ArticlePanelGroup } from "./editor-nodes";
 import ImagePanel from "./image-panel";
 
 const textStyles = [
@@ -39,6 +40,15 @@ type FormatCommand = {
   pressed: boolean;
   run: () => boolean;
 };
+
+function selectionInsidePanelGroup(editor: Editor) {
+  const { $to } = editor.state.selection;
+  for (let depth = $to.depth; depth > 0; depth -= 1) {
+    const type = $to.node(depth).type.name;
+    if (type === "articleTabs" || type === "articleAccordion") return true;
+  }
+  return false;
+}
 
 export default function FormattingToolbar({
   editor,
@@ -72,7 +82,7 @@ export default function FormattingToolbar({
       orderedList: editor.isActive("orderedList"),
       blockquote: editor.isActive("blockquote"),
       codeBlock: editor.isActive("codeBlock"),
-      tabs: editor.isActive("articleTabs"),
+      insidePanelGroup: selectionInsidePanelGroup(editor),
       link: editor.isActive("link"),
       canUndo: editor.can().undo(),
       canRedo: editor.can().redo(),
@@ -120,13 +130,13 @@ export default function FormattingToolbar({
     editor.commands.focus();
   }
 
-  function insertTabs() {
+  function insertPanelGroup(type: ArticlePanelGroup) {
     setLink(null);
     setLinkError(false);
     setImageOpen(false);
     editor.chain().focus().insertContentAt(editor.state.selection.to, {
-      type: "articleTabs",
-      content: [articleTab("Tab 1"), articleTab("Tab 2")],
+      type,
+      content: [articlePanel(type, 1), articlePanel(type, 2)],
     }).run();
   }
 
@@ -232,13 +242,27 @@ export default function FormattingToolbar({
               size="sm"
               type="button"
               isIconOnly
-              isDisabled={active.codeBlock || active.tabs}
+              isDisabled={active.codeBlock || active.insidePanelGroup}
               aria-label="Insert tabs"
-              onPress={insertTabs}
+              onPress={() => insertPanelGroup("articleTabs")}
             >
               <RectangleStackIcon aria-hidden="true" className="size-4 shrink-0" />
             </Button>
             <Tooltip.Content>Insert tabs</Tooltip.Content>
+          </Tooltip>
+          <Tooltip delay={300}>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              isIconOnly
+              isDisabled={active.codeBlock || active.insidePanelGroup}
+              aria-label="Insert accordion"
+              onPress={() => insertPanelGroup("articleAccordion")}
+            >
+              <QueueListIcon aria-hidden="true" className="size-4 shrink-0" />
+            </Button>
+            <Tooltip.Content>Insert accordion</Tooltip.Content>
           </Tooltip>
         </div>
         <div className={toolbarGroup} role="group" aria-label="History">

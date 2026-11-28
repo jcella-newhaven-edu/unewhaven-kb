@@ -11,15 +11,49 @@ import {
   useEditorState,
   type NodeViewProps,
 } from "@tiptap/react";
-import { ArticleImage, ArticleTab, ArticleTabs } from "@/components/article-extensions";
+import {
+  ArticleAccordion,
+  ArticleAccordionItem,
+  ArticleImage,
+  ArticleTab,
+  ArticleTabs,
+} from "@/components/article-extensions";
 import { articleImageAltMaxLength, validArticleImageSrc } from "@/lib/article-media";
 
 const nodePanel = "my-3 overflow-hidden rounded-[0.625rem] border border-kb-line bg-kb-panel";
 const nodeToolbar = "flex flex-wrap items-center gap-2 px-2.5 py-2 text-[0.8125rem] text-kb-heading";
 const nodeField = `${nodeToolbar} [&>input]:min-w-32 [&>input]:flex-1 [&>label]:font-[650]`;
+const maxPanels = 8;
+const maxTitleLength = 80;
 
-export function articleTab(label: string): JSONContent {
-  return { type: "articleTab", attrs: { label }, content: [{ type: "paragraph" }] };
+const groups = {
+  articleTabs: {
+    heading: "Tabbed content",
+    nodeType: "articleTab",
+    titleAttribute: "label",
+    panelLabel: "Tab",
+    deleteLabel: "Remove tab group",
+    minPanels: 2,
+  },
+  articleAccordion: {
+    heading: "Accordion",
+    nodeType: "articleAccordionItem",
+    titleAttribute: "title",
+    panelLabel: "Section",
+    deleteLabel: "Remove accordion",
+    minPanels: 1,
+  },
+} as const;
+
+export type ArticlePanelGroup = keyof typeof groups;
+
+export function articlePanel(group: ArticlePanelGroup, number: number): JSONContent {
+  const { nodeType, titleAttribute, panelLabel } = groups[group];
+  return {
+    type: nodeType,
+    attrs: { [titleAttribute]: `${panelLabel} ${number}` },
+    content: [{ type: "paragraph" }],
+  };
 }
 
 function ImageView({ node, updateAttributes, deleteNode, selected }: NodeViewProps) {
@@ -48,13 +82,17 @@ function ImageView({ node, updateAttributes, deleteNode, selected }: NodeViewPro
   );
 }
 
-function TabsView({ editor, node, getPos, deleteNode }: NodeViewProps) {
-  function addTab() {
+function GroupView({ editor, node, getPos, deleteNode }: NodeViewProps) {
+  const type = node.type.name === "articleAccordion" ? "articleAccordion" : "articleTabs";
+  const { heading, panelLabel, deleteLabel } = groups[type];
+  const addLabel = `Add ${panelLabel.toLowerCase()}`;
+
+  function addPanel() {
     const position = getPos();
-    if (position === undefined || node.childCount >= 8) return;
+    if (position === undefined || node.childCount >= maxPanels) return;
     editor.commands.insertContentAt(
       position + node.nodeSize - 1,
-      articleTab(`Tab ${node.childCount + 1}`),
+      articlePanel(type, node.childCount + 1),
       { updateSelection: false },
     );
   }
@@ -62,42 +100,46 @@ function TabsView({ editor, node, getPos, deleteNode }: NodeViewProps) {
   return (
     <NodeViewWrapper className={nodePanel}>
       <div className={nodeToolbar} contentEditable={false}>
-        <span className="me-auto font-bold">Tabbed content</span>
-        <Button type="button" variant="ghost" size="sm" isDisabled={node.childCount >= 8} onPress={addTab}>
-          <PlusIcon aria-hidden="true" className="size-4 shrink-0" /> Add tab
+        <span className="me-auto font-bold">{heading}</span>
+        <Button type="button" variant="ghost" size="sm" isDisabled={node.childCount >= maxPanels} onPress={addPanel}>
+          <PlusIcon aria-hidden="true" className="size-4 shrink-0" />
+          {addLabel}
         </Button>
-        <RemoveNodeButton label="Remove tab group" remove={deleteNode} />
+        <RemoveNodeButton label={deleteLabel} remove={deleteNode} />
       </div>
       <NodeViewContent className="px-2.5 pb-2.5" />
     </NodeViewWrapper>
   );
 }
 
-function TabView({ editor, node, getPos, updateAttributes, deleteNode }: NodeViewProps) {
+function PanelView({ editor, node, getPos, updateAttributes, deleteNode }: NodeViewProps) {
   const labelId = useId();
+  const type = node.type.name === "articleAccordionItem" ? "articleAccordion" : "articleTabs";
+  const { panelLabel, titleAttribute, minPanels } = groups[type];
+  const title = node.attrs[titleAttribute];
   const canRemove = useEditorState({
     editor,
     selector: ({ editor }) => {
       const position = getPos();
       return position !== undefined && position <= editor.state.doc.content.size
-        && editor.state.doc.resolve(position).parent.childCount > 2;
+        && editor.state.doc.resolve(position).parent.childCount > minPanels;
     },
   });
 
   return (
     <NodeViewWrapper className="overflow-hidden rounded-lg border border-kb-line bg-background not-first:mt-2">
       <div className={nodeField} contentEditable={false}>
-        <label htmlFor={labelId}>Tab title</label>
+        <label htmlFor={labelId}>{panelLabel} title</label>
         <Input
           id={labelId}
-          value={typeof node.attrs.label === "string" ? node.attrs.label : ""}
-          maxLength={80}
-          onChange={(event) => updateAttributes({ label: event.target.value })}
+          value={typeof title === "string" ? title : ""}
+          maxLength={maxTitleLength}
+          onChange={(event) => updateAttributes({ [titleAttribute]: event.target.value })}
           onKeyDown={preventFormSubmit}
         />
-        <RemoveNodeButton label="Remove tab" remove={deleteNode} disabled={!canRemove} />
+        <RemoveNodeButton label={`Remove ${panelLabel.toLowerCase()}`} remove={deleteNode} disabled={!canRemove} />
       </div>
-      <NodeViewContent className="min-h-11 border-t border-kb-line px-3 pt-1.5 pb-2.5" />
+      <NodeViewContent role="group" aria-label={`${panelLabel} content`} className="min-h-11 border-t border-kb-line px-3 pt-1.5 pb-2.5" />
     </NodeViewWrapper>
   );
 }
@@ -127,9 +169,17 @@ export const EditorArticleImage = ArticleImage.extend({
 });
 
 export const EditorArticleTabs = ArticleTabs.extend({
-  addNodeView: () => ReactNodeViewRenderer(TabsView),
+  addNodeView: () => ReactNodeViewRenderer(GroupView),
 });
 
 export const EditorArticleTab = ArticleTab.extend({
-  addNodeView: () => ReactNodeViewRenderer(TabView),
+  addNodeView: () => ReactNodeViewRenderer(PanelView),
+});
+
+export const EditorArticleAccordion = ArticleAccordion.extend({
+  addNodeView: () => ReactNodeViewRenderer(GroupView),
+});
+
+export const EditorArticleAccordionItem = ArticleAccordionItem.extend({
+  addNodeView: () => ReactNodeViewRenderer(PanelView),
 });

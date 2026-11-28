@@ -61,3 +61,42 @@ export const ArticleTab = Node.create({
     return ["div", mergeAttributes(HTMLAttributes, { "data-article-tab": "" }), 0];
   },
 });
+
+export const ArticleAccordion = Node.create({
+  name: "articleAccordion",
+  group: "block",
+  content: "articleAccordionItem{1,8}",
+  isolating: true,
+
+  parseHTML() {
+    return [{ tag: "section[data-article-accordion]" }];
+  },
+
+  renderHTML() {
+    return ["section", { "data-article-accordion": "" }, 0];
+  },
+});
+
+export const ArticleAccordionItem = Node.create({
+  name: "articleAccordionItem",
+  content: "block+",
+  isolating: true,
+
+  addAttributes() {
+    return {
+      title: {
+        default: "Section",
+        parseHTML: (element) => element.getAttribute("data-title") || "Section",
+        renderHTML: ({ title }) => ({ "data-title": title }),
+      },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: "div[data-article-accordion-item]" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ["div", mergeAttributes(HTMLAttributes, { "data-article-accordion-item": "" }), 0];
+  },
+});

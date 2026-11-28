@@ -9,7 +9,13 @@ import Link from "next/link";
 import { createArticle, updateArticle } from "@/lib/admin/actions";
 import { slugFromTitle } from "@/lib/admin/slug";
 import { adminStyles as styles } from "../admin-styles";
-import { EditorArticleImage, EditorArticleTab, EditorArticleTabs } from "./editor-nodes";
+import {
+  EditorArticleAccordion,
+  EditorArticleAccordionItem,
+  EditorArticleImage,
+  EditorArticleTab,
+  EditorArticleTabs,
+} from "./editor-nodes";
 import FormattingToolbar from "./formatting-toolbar";
 
 type Topic = { slug: string; title: string; parentSlug: string | null };
@@ -44,6 +50,8 @@ const extensions = [
   EditorArticleImage,
   EditorArticleTabs,
   EditorArticleTab,
+  EditorArticleAccordion,
+  EditorArticleAccordionItem,
 ];
 
 function editorContent(article?: ExistingArticle): JSONContent {

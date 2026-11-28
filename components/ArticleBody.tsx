@@ -1,7 +1,7 @@
 import { Children } from "react";
 import type { JSONContent } from "@tiptap/core";
 import { renderJSONContentToReactElement } from "@tiptap/static-renderer/json/react";
-import { Tabs } from "@heroui/react";
+import { Accordion, Tabs } from "@heroui/react";
 import { validArticleImageSrc } from "@/lib/article-media";
 
 type ArticleMark = NonNullable<JSONContent["marks"]>[number];
@@ -83,6 +83,35 @@ const nodeMapping = {
     );
   },
   articleTab: ({ children }) => <>{children}</>,
+  articleAccordion: ({ node, children }) => {
+    if (!node.content?.length) return null;
+    const panels = Children.toArray(children);
+    return (
+      <Accordion allowsMultipleExpanded className="my-6 min-w-0 overflow-hidden rounded-xl border border-kb-line bg-kb-panel">
+        {node.content.map((section, index) => {
+          const title = typeof section.attrs?.title === "string" && section.attrs.title.trim()
+            ? section.attrs.title
+            : `Section ${index + 1}`;
+          return (
+            <Accordion.Item key={index}>
+              <Accordion.Heading>
+                <Accordion.Trigger className="min-w-0 gap-3 px-4 py-3.5 text-base font-semibold text-kb-heading wrap-anywhere hover:bg-kb-hover focus-visible:-outline-offset-2">
+                  <span className="min-w-0">{title}</span>
+                  <Accordion.Indicator />
+                </Accordion.Trigger>
+              </Accordion.Heading>
+              <Accordion.Panel>
+                <Accordion.Body className="text-[0.9375rem] leading-[1.6] text-kb-muted">
+                  {panels[index]}
+                </Accordion.Body>
+              </Accordion.Panel>
+            </Accordion.Item>
+          );
+        })}
+      </Accordion>
+    );
+  },
+  articleAccordionItem: ({ children }) => <>{children}</>,
 } satisfies RendererOptions["nodeMapping"];
 
 const markMapping = {
@@ -122,19 +151,20 @@ export function prepareArticleBody(body: JSONContent, bodyText: string) {
   const ids = new Set<string>();
   let hasContent = false;
 
-  function prepare(node: JSONContent, inTab = false): JSONContent | undefined {
+  function prepare(node: JSONContent, inPanel = false): JSONContent | undefined {
     if (typeof node?.type !== "string" || !Object.hasOwn(nodeMapping, node.type)) return;
     const text = typeof node.text === "string" ? node.text : undefined;
+    const hasPanels = node.type === "articleTabs" || node.type === "articleAccordion";
     if ((node.type === "text" && text?.trim()) || (node.type === "image" && validArticleImageSrc(node.attrs?.src))
-      || (node.type === "articleTabs" && node.content?.length)) hasContent = true;
+      || (hasPanels && node.content?.length)) hasContent = true;
     const content = Array.isArray(node.content)
-      ? node.content.map((child) => prepare(child, inTab || node.type === "articleTabs")).filter((child) => child !== undefined)
+      ? node.content.map((child) => prepare(child, inPanel || hasPanels)).filter((child) => child !== undefined)
       : undefined;
     const marks = Array.isArray(node.marks)
       ? node.marks.filter((mark) => typeof mark?.type === "string" && Object.hasOwn(markMapping, mark.type))
       : undefined;
     const prepared = { ...node, text, content, marks };
-    if (node.type === "heading" && !inTab) {
+    if (node.type === "heading" && !inPanel) {
       const title = plainText(prepared).replace(/\s+/g, " ").trim();
       if (title) {
         const level = node.attrs?.level === 2 ? 2 : 3;
