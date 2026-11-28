@@ -1,4 +1,5 @@
 import type { JSONContent } from "@tiptap/core";
+import { articleAlertTitleMaxLength, defaultArticleAlertStatus, isArticleAlertStatus } from "@/lib/article-alert";
 import { articleImageAltMaxLength, validArticleImageSrc } from "@/lib/article-media";
 
 export type ArticleActionState = {
@@ -23,7 +24,7 @@ const NEW_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const VERSION = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
 const BLOCKS = [
   "paragraph", "heading", "bulletList", "orderedList", "blockquote", "codeBlock", "horizontalRule",
-  "image", "articleTabs", "articleAccordion",
+  "image", "articleTabs", "articleAccordion", "articleAlert",
 ];
 const INLINE = ["text", "hardBreak"];
 const CHILDREN: Record<string, string[]> = {
@@ -39,6 +40,7 @@ const CHILDREN: Record<string, string[]> = {
   articleTab: BLOCKS,
   articleAccordion: ["articleAccordionItem"],
   articleAccordionItem: BLOCKS,
+  articleAlert: BLOCKS,
   image: [],
   horizontalRule: [],
   hardBreak: [],
@@ -47,7 +49,7 @@ const CHILDREN: Record<string, string[]> = {
 const MARKS = new Set(["bold", "italic", "underline", "strike", "code", "link"]);
 const TEXT_BLOCKS = new Set([
   "doc", "listItem", "bulletList", "orderedList", "blockquote",
-  "articleTabs", "articleTab", "articleAccordion", "articleAccordionItem",
+  "articleTabs", "articleTab", "articleAccordion", "articleAccordionItem", "articleAlert",
 ]);
 
 function formString(form: FormData, name: string): string | null {
@@ -252,6 +254,17 @@ export function parseArticleBody(raw: string | null): ArticleBody {
       }
       node.attrs = { [attr]: name };
     }
+    if (type === "articleAlert") {
+      const { status = defaultArticleAlertStatus, title = "" } = attrs;
+      if (!isArticleAlertStatus(status)) throw new Error("Choose a supported alert status.");
+      const trimmedTitle = typeof title === "string" ? title.trim() : null;
+      if (trimmedTitle === null || trimmedTitle.length > articleAlertTitleMaxLength
+        || !trimmedTitle.isWellFormed() || hasControlCharacter(trimmedTitle)) {
+        throw new Error(`Use up to ${articleAlertTitleMaxLength} characters for the alert title.`);
+      }
+      if (!node.content?.length) throw new Error("Include a paragraph or another block in each alert.");
+      node.attrs = { status, title: trimmedTitle };
+    }
     if (type === "listItem" && node.content?.[0]?.type !== "paragraph") {
       throw new Error("The article body contains an invalid list item.");
     }
@@ -268,6 +281,9 @@ export function parseArticleBody(raw: string | null): ArticleBody {
     const content = node.text ?? node.content?.map(extractText).join(separator) ?? "";
     if (node.type === "articleTab") return `${node.attrs?.label}\n${content}`;
     if (node.type === "articleAccordionItem") return `${node.attrs?.title}\n${content}`;
+    if (node.type === "articleAlert" && node.attrs?.title) {
+      return content ? `${node.attrs.title}\n${content}` : node.attrs.title;
+    }
     return content;
   }
 

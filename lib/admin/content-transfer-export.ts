@@ -64,7 +64,9 @@ function hasArticleContent(body: JSONContent) {
     const node = pending.pop();
     if (node?.type === "text" && node.text?.trim()) return true;
     if (node?.type === "image" && validArticleImageSrc(node.attrs?.src)) return true;
-    if ((node?.type === "articleTabs" || node?.type === "articleAccordion") && node.content?.length) return true;
+    if (node?.content?.length && (node.type === "articleTabs" || node.type === "articleAccordion" || node.type === "articleAlert")) {
+      return true;
+    }
     if (Array.isArray(node?.content)) {
       for (const child of node.content) pending.push(child);
     }

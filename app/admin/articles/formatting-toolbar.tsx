@@ -8,6 +8,7 @@ import {
   ChatBubbleBottomCenterTextIcon,
   ChevronDownIcon,
   CodeBracketIcon,
+  InformationCircleIcon,
   ItalicIcon,
   LinkIcon,
   ListBulletIcon,
@@ -19,6 +20,7 @@ import {
   UnderlineIcon,
 } from "@heroicons/react/24/outline";
 import { Button, Dropdown, Input, ToggleButton, Toolbar, Tooltip } from "@heroui/react";
+import type { JSONContent } from "@tiptap/core";
 import { useEditorState, type Editor } from "@tiptap/react";
 import { validHref } from "@/lib/admin/validation";
 import { adminStyles } from "../admin-styles";
@@ -41,11 +43,10 @@ type FormatCommand = {
   run: () => boolean;
 };
 
-function selectionInsidePanelGroup(editor: Editor) {
+function selectionInside(editor: Editor, ...nodeTypes: string[]) {
   const { $to } = editor.state.selection;
   for (let depth = $to.depth; depth > 0; depth -= 1) {
-    const type = $to.node(depth).type.name;
-    if (type === "articleTabs" || type === "articleAccordion") return true;
+    if (nodeTypes.includes($to.node(depth).type.name)) return true;
   }
   return false;
 }
@@ -82,7 +83,8 @@ export default function FormattingToolbar({
       orderedList: editor.isActive("orderedList"),
       blockquote: editor.isActive("blockquote"),
       codeBlock: editor.isActive("codeBlock"),
-      insidePanelGroup: selectionInsidePanelGroup(editor),
+      insidePanelGroup: selectionInside(editor, "articleTabs", "articleAccordion"),
+      insideAlert: selectionInside(editor, "articleAlert"),
       link: editor.isActive("link"),
       canUndo: editor.can().undo(),
       canRedo: editor.can().redo(),
@@ -130,14 +132,18 @@ export default function FormattingToolbar({
     editor.commands.focus();
   }
 
-  function insertPanelGroup(type: ArticlePanelGroup) {
+  function insertBlock(block: JSONContent) {
     setLink(null);
     setLinkError(false);
     setImageOpen(false);
-    editor.chain().focus().insertContentAt(editor.state.selection.to, {
+    editor.chain().focus().insertContentAt(editor.state.selection.to, block).run();
+  }
+
+  function insertPanelGroup(type: ArticlePanelGroup) {
+    insertBlock({
       type,
       content: [articlePanel(type, 1), articlePanel(type, 2)],
-    }).run();
+    });
   }
 
   function applyLink() {
@@ -235,6 +241,20 @@ export default function FormattingToolbar({
               <PhotoIcon aria-hidden="true" className="size-4 shrink-0" />
             </Button>
             <Tooltip.Content>Insert image</Tooltip.Content>
+          </Tooltip>
+          <Tooltip delay={300}>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              isIconOnly
+              isDisabled={active.codeBlock || active.insideAlert}
+              aria-label="Insert alert"
+              onPress={() => insertBlock({ type: "articleAlert", content: [{ type: "paragraph" }] })}
+            >
+              <InformationCircleIcon aria-hidden="true" className="size-4 shrink-0" />
+            </Button>
+            <Tooltip.Content>Insert alert</Tooltip.Content>
           </Tooltip>
           <Tooltip delay={300}>
             <Button

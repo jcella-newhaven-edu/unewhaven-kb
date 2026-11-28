@@ -14,11 +14,20 @@ import {
 import {
   ArticleAccordion,
   ArticleAccordionItem,
+  ArticleAlert as ArticleAlertExtension,
   ArticleImage,
   ArticleTab,
   ArticleTabs,
 } from "@/components/article-extensions";
+import ArticleAlert from "@/components/ArticleAlert";
+import {
+  articleAlertStatuses,
+  articleAlertTitleMaxLength,
+  defaultArticleAlertStatus,
+  isArticleAlertStatus,
+} from "@/lib/article-alert";
 import { articleImageAltMaxLength, validArticleImageSrc } from "@/lib/article-media";
+import { adminStyles } from "../admin-styles";
 
 const nodePanel = "my-3 overflow-hidden rounded-[0.625rem] border border-kb-line bg-kb-panel";
 const nodeToolbar = "flex flex-wrap items-center gap-2 px-2.5 py-2 text-[0.8125rem] text-kb-heading";
@@ -78,6 +87,57 @@ function ImageView({ node, updateAttributes, deleteNode, selected }: NodeViewPro
         />
         <RemoveNodeButton label="Remove image" remove={deleteNode} />
       </div>
+    </NodeViewWrapper>
+  );
+}
+
+function AlertView({ editor, node, updateAttributes, deleteNode }: NodeViewProps) {
+  const typeId = useId();
+  const titleId = useId();
+  const { status, title } = node.attrs;
+  const alertStatus = isArticleAlertStatus(status) ? status : defaultArticleAlertStatus;
+
+  return (
+    <NodeViewWrapper>
+      <ArticleAlert status={alertStatus} title={null}>
+        <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2" contentEditable={false}>
+          <div className="grid min-w-0 gap-2 min-[36rem]:grid-cols-[minmax(7rem,0.55fr)_minmax(0,1fr)]">
+            <div className={adminStyles.field}>
+              <label htmlFor={typeId}>Alert type</label>
+              <select
+                id={typeId}
+                value={alertStatus}
+                onChange={(event) => updateAttributes({ status: event.target.value })}
+              >
+                {Object.entries(articleAlertStatuses).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div className={adminStyles.field}>
+              <label htmlFor={titleId}>Alert title</label>
+              <Input
+                id={titleId}
+                value={typeof title === "string" ? title : ""}
+                maxLength={articleAlertTitleMaxLength}
+                placeholder="Optional"
+                onChange={(event) => updateAttributes({ title: event.target.value })}
+                onKeyDown={preventFormSubmit}
+              />
+            </div>
+          </div>
+          <RemoveNodeButton label="Remove alert" remove={deleteNode} />
+        </div>
+        <NodeViewContent
+          role="group"
+          aria-label="Alert content"
+          className="min-h-9 border-t border-kb-line pt-2"
+          onPointerDown={(event) => {
+            // Restore editor focus before ProseMirror selects the clicked position.
+            if (event.button === 0 && !editor.view.hasFocus()) editor.view.focus();
+          }}
+        />
+      </ArticleAlert>
     </NodeViewWrapper>
   );
 }
@@ -166,6 +226,10 @@ function RemoveNodeButton({
 
 export const EditorArticleImage = ArticleImage.extend({
   addNodeView: () => ReactNodeViewRenderer(ImageView),
+});
+
+export const EditorArticleAlert = ArticleAlertExtension.extend({
+  addNodeView: () => ReactNodeViewRenderer(AlertView),
 });
 
 export const EditorArticleTabs = ArticleTabs.extend({

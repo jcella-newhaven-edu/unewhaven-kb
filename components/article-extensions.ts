@@ -1,4 +1,5 @@
 import { Node, mergeAttributes } from "@tiptap/core";
+import { defaultArticleAlertStatus, isArticleAlertStatus } from "@/lib/article-alert";
 import { validArticleImageSrc } from "@/lib/article-media";
 
 export const ArticleImage = Node.create({
@@ -98,5 +99,38 @@ export const ArticleAccordionItem = Node.create({
 
   renderHTML({ HTMLAttributes }) {
     return ["div", mergeAttributes(HTMLAttributes, { "data-article-accordion-item": "" }), 0];
+  },
+});
+
+export const ArticleAlert = Node.create({
+  name: "articleAlert",
+  group: "block",
+  content: "block+",
+  isolating: true,
+
+  addAttributes() {
+    return {
+      status: {
+        default: defaultArticleAlertStatus,
+        parseHTML: (element) => {
+          const status = element.getAttribute("data-status");
+          return isArticleAlertStatus(status) ? status : defaultArticleAlertStatus;
+        },
+        renderHTML: ({ status }) => ({ "data-status": status }),
+      },
+      title: {
+        default: "",
+        parseHTML: (element) => element.getAttribute("data-title") ?? "",
+        renderHTML: ({ title }) => ({ "data-title": title }),
+      },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: "aside[data-article-alert]" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ["aside", mergeAttributes(HTMLAttributes, { "data-article-alert": "" }), 0];
   },
 });

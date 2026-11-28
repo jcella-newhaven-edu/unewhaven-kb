@@ -12,6 +12,7 @@ import { adminStyles as styles } from "../admin-styles";
 import {
   EditorArticleAccordion,
   EditorArticleAccordionItem,
+  EditorArticleAlert,
   EditorArticleImage,
   EditorArticleTab,
   EditorArticleTabs,
@@ -52,6 +53,7 @@ const extensions = [
   EditorArticleTab,
   EditorArticleAccordion,
   EditorArticleAccordionItem,
+  EditorArticleAlert,
 ];
 
 function editorContent(article?: ExistingArticle): JSONContent {

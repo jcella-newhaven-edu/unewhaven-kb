@@ -2,7 +2,9 @@ import { Children } from "react";
 import type { JSONContent } from "@tiptap/core";
 import { renderJSONContentToReactElement } from "@tiptap/static-renderer/json/react";
 import { Accordion, Tabs } from "@heroui/react";
+import { defaultArticleAlertStatus, isArticleAlertStatus } from "@/lib/article-alert";
 import { validArticleImageSrc } from "@/lib/article-media";
+import ArticleAlert from "./ArticleAlert";
 
 type ArticleMark = NonNullable<JSONContent["marks"]>[number];
 type RendererOptions = Parameters<typeof renderJSONContentToReactElement<ArticleMark, JSONContent>>[0];
@@ -112,6 +114,17 @@ const nodeMapping = {
     );
   },
   articleAccordionItem: ({ children }) => <>{children}</>,
+  articleAlert: ({ node, children }) => {
+    const { status, title } = node.attrs ?? {};
+    return (
+      <ArticleAlert
+        status={isArticleAlertStatus(status) ? status : defaultArticleAlertStatus}
+        title={typeof title === "string" ? title : undefined}
+      >
+        {children}
+      </ArticleAlert>
+    );
+  },
 } satisfies RendererOptions["nodeMapping"];
 
 const markMapping = {
@@ -156,7 +169,7 @@ export function prepareArticleBody(body: JSONContent, bodyText: string) {
     const text = typeof node.text === "string" ? node.text : undefined;
     const hasPanels = node.type === "articleTabs" || node.type === "articleAccordion";
     if ((node.type === "text" && text?.trim()) || (node.type === "image" && validArticleImageSrc(node.attrs?.src))
-      || (hasPanels && node.content?.length)) hasContent = true;
+      || ((hasPanels || node.type === "articleAlert") && node.content?.length)) hasContent = true;
     const content = Array.isArray(node.content)
       ? node.content.map((child) => prepare(child, inPanel || hasPanels)).filter((child) => child !== undefined)
       : undefined;
