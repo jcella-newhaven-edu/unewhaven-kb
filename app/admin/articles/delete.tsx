@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { Alert, AlertDialog, Button } from "@heroui/react";
+import { TrashIcon } from "@heroicons/react/24/outline";
 import { deleteArticle } from "@/lib/admin/actions";
 import { adminStyles as styles } from "../admin-styles";
 
@@ -9,17 +10,27 @@ export function DeleteArticle({
   slug,
   title,
   updatedToken,
+  compact = false,
 }: {
   slug: string;
   title: string;
   updatedToken: string;
+  compact?: boolean;
 }) {
   const [result, remove, pending] = useActionState(deleteArticle, {});
 
   return (
-    <div className={styles.deleteArea}>
+    <div className={compact ? undefined : styles.deleteArea}>
       <AlertDialog>
-        <Button type="button" variant="danger-soft">Delete article</Button>
+        <Button
+          type="button"
+          variant="danger-soft"
+          size={compact ? "sm" : undefined}
+          isIconOnly={compact}
+          aria-label={compact ? `Delete ${title}` : undefined}
+        >
+          {compact ? <TrashIcon aria-hidden="true" className="size-4" /> : "Delete article"}
+        </Button>
         <AlertDialog.Backdrop isKeyboardDismissDisabled={pending}>
           <AlertDialog.Container>
             <AlertDialog.Dialog className={styles.deleteDialog}>
