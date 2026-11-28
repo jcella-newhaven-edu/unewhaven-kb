@@ -26,7 +26,13 @@ export default function ArticleAlert({
       status={status}
       role={title === null ? undefined : "note"}
       aria-label={customTitle && customTitle !== label ? label : undefined}
-      className={`my-5 min-w-0 gap-2.5 rounded-xl border border-kb-line border-s-4 border-s-current bg-kb-panel px-3 py-3 shadow-none sm:gap-3 sm:px-4 ${statusColors[status]}`}
+      className={[
+        "my-5 min-w-0 gap-2.5 rounded-xl border px-3 py-3 shadow-none sm:gap-3 sm:px-4",
+        "[border-color:color-mix(in_srgb,var(--kb-line),currentColor_24%)]",
+        "[background-color:color-mix(in_srgb,var(--kb-panel),currentColor_9%)]",
+        "dark:[background-color:color-mix(in_srgb,var(--kb-panel),currentColor_12%)]",
+        statusColors[status],
+      ].join(" ")}
     >
       <Alert.Indicator aria-hidden="true" className="shrink-0 p-1 text-inherit" />
       <Alert.Content className="min-w-0 flex-1 gap-1.5">
@@ -35,7 +41,7 @@ export default function ArticleAlert({
             {customTitle || label}
           </Alert.Title>
         )}
-        <div className="w-full min-w-0 text-[0.9375rem] leading-relaxed text-kb-muted wrap-anywhere [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+        <div className="w-full min-w-0 text-[0.9375rem] leading-relaxed text-kb-muted wrap-anywhere [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_a]:text-[color:color-mix(in_srgb,var(--link),var(--kb-heading)_30%)]">
           {children}
         </div>
       </Alert.Content>
