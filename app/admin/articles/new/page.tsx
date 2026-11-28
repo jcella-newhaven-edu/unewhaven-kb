@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listAdminTopics } from "@/lib/admin/articles";
+import AdminFeedback from "../../admin-feedback";
 import { AdminBackLink, AdminGate, AdminHeader, AdminPage } from "../../shell";
 import AdminArticleForm from "../editor";
 import { adminStyles as styles } from "../../admin-styles";
@@ -17,10 +18,10 @@ export default function NewAdminArticle() {
             {topics.length
               ? <AdminArticleForm topics={topics} />
               : (
-                <p className={styles.empty}>
+                <AdminFeedback status="warning" className="max-w-3xl">
                   <Link href="/admin/topics/new" className={styles.backLink} prefetch={false}>Create a topic</Link>
                   {" before adding an article."}
-                </p>
+                </AdminFeedback>
               )}
           </>
         );

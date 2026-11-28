@@ -64,7 +64,6 @@ export default function EditAdminArticle({
             <AdminHeader title="Edit article" session={session}>
               <AdminBackLink section="articles" />
             </AdminHeader>
-            {query.saved === "1" && <p className={styles.notice} role="status">Article saved.</p>}
             <AdminArticleForm
               key={`${article.slug}:${article.updatedToken}`}
               article={{
@@ -79,11 +78,12 @@ export default function EditAdminArticle({
                 bodyText: article.bodyText,
               }}
               topics={topics}
-              attribution={<ArticleHistory article={article} showAttribution={session.role === "admin"} />}
+              history={<ArticleHistory article={article} showAttribution={session.role === "admin"} />}
+              saved={query.saved === "1"}
+              deletion={session.role === "admin" && (
+                <DeleteArticle slug={article.slug} title={article.title} updatedToken={article.updatedToken} />
+              )}
             />
-            {session.role === "admin" && (
-              <DeleteArticle slug={article.slug} title={article.title} updatedToken={article.updatedToken} />
-            )}
           </>
         );
       }} />

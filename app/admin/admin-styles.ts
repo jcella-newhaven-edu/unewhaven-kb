@@ -22,7 +22,7 @@ export const adminStyles = {
   linkPanel: "grid gap-1.5 border-b border-kb-line bg-kb-panel p-2.5 text-sm",
   linkControls: "flex flex-wrap items-center gap-1.5 [&_input]:min-w-40 [&_input]:flex-1",
   formActions: "flex flex-wrap items-center gap-4",
-  deleteArea: "mt-8 max-w-3xl border-t border-kb-line pt-5",
+  deleteArea: "border-t border-kb-line pt-3",
   deleteDialog: "[&_p_strong]:wrap-anywhere",
 } as const;
 

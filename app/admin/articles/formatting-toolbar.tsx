@@ -23,6 +23,7 @@ import { Button, Dropdown, Input, ToggleButton, Toolbar, Tooltip } from "@heroui
 import type { JSONContent } from "@tiptap/core";
 import { useEditorState, type Editor } from "@tiptap/react";
 import { validHref } from "@/lib/admin/validation";
+import AdminFeedback from "../admin-feedback";
 import { adminStyles } from "../admin-styles";
 import { articlePanel, type ArticlePanelGroup } from "./editor-nodes";
 import ImagePanel from "./image-panel";
@@ -356,7 +357,7 @@ export default function FormattingToolbar({
             )}
             <Button size="sm" type="button" variant="ghost" onPress={closeLinkPanel}>Cancel</Button>
           </div>
-          {linkError && <p id={`${linkId}-error`} className={adminStyles.error} role="alert">Enter a valid web, email, or site link.</p>}
+          {linkError && <AdminFeedback id={`${linkId}-error`} status="danger">Enter a valid web, email, or site link.</AdminFeedback>}
         </div>
       )}
     </>

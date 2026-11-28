@@ -4,10 +4,11 @@ import { useActionState, useEffect, useId, useState, type ReactNode } from "reac
 import type { JSONContent } from "@tiptap/core";
 import { StarterKit } from "@tiptap/starter-kit";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
-import { Alert, Button, Description, FieldError, Form, Input, InputGroup, Label, TextArea, TextField } from "@heroui/react";
+import { Button, Description, FieldError, Form, Input, InputGroup, Label, TextArea, TextField } from "@heroui/react";
 import Link from "next/link";
 import { createArticle, updateArticle } from "@/lib/admin/actions";
 import { slugFromTitle } from "@/lib/admin/slug";
+import AdminFeedback from "../admin-feedback";
 import AdminSelect from "../admin-select";
 import { adminStyles as styles } from "../admin-styles";
 import {
@@ -73,23 +74,18 @@ function editorContent(article?: ExistingArticle): JSONContent {
   return paragraphs.length ? { type: "doc", content: paragraphs } : emptyDocument;
 }
 
-export function SaveError({ message }: { message: string }) {
-  return (
-    <Alert status="danger" role="alert">
-      <Alert.Indicator />
-      <Alert.Content><Alert.Description>{message}</Alert.Description></Alert.Content>
-    </Alert>
-  );
-}
-
 export default function AdminArticleForm({
   article,
   topics,
-  attribution,
+  history,
+  deletion,
+  saved = false,
 }: {
   article?: ExistingArticle;
   topics: Topic[];
-  attribution?: ReactNode;
+  history?: ReactNode;
+  deletion?: ReactNode;
+  saved?: boolean;
 }) {
   const [result, save, saving] = useActionState(article ? updateArticle : createArticle, {});
   const formId = useId();
@@ -127,6 +123,7 @@ export default function AdminArticleForm({
   }, [editor, saving]);
 
   const errors = result.fieldErrors ?? {};
+  const saveError = result.error || (Object.keys(errors).length ? "Review the highlighted fields." : undefined);
   const topicsBySlug = new Map(topics.map((item) => [item.slug, item.title]));
   const slug = slugOverride ?? article?.slug ?? slugFromTitle(title);
 
@@ -143,10 +140,6 @@ export default function AdminArticleForm({
       validationBehavior="aria"
       render={(props) => <form {...props} onResetCapture={(event) => event.preventDefault()} />}
     >
-      {result.error && <SaveError message={result.error} />}
-      {Object.keys(errors).length > 0 && !result.error && (
-        <p className={styles.error} role="alert">Review the fields marked below.</p>
-      )}
       {article && (
         <>
           <input type="hidden" name="originalSlug" value={article.slug} />
@@ -228,7 +221,9 @@ export default function AdminArticleForm({
                     </label>
                   ))}
                 </div>
-                {errors.additionalTopicSlug && <p id={`${extraTopicsId}-error`} className={styles.error}>{errors.additionalTopicSlug}</p>}
+                {errors.additionalTopicSlug && (
+                  <AdminFeedback id={`${extraTopicsId}-error`} status="danger">{errors.additionalTopicSlug}</AdminFeedback>
+                )}
               </fieldset>
             )}
 
@@ -260,21 +255,25 @@ export default function AdminArticleForm({
               )}
             </TextField>
           </div>
-          {attribution}
+          {history}
+          <div className="grid gap-3">
+            {saveError && <AdminFeedback status="danger">{saveError}</AdminFeedback>}
+            {saved && !saving && !saveError && <AdminFeedback status="success">Article saved.</AdminFeedback>}
+            <div className={styles.formActions}>
+              <Button
+                type="submit"
+                variant="primary"
+                isPending={saving}
+                isDisabled={!editor || !topics.length || saving || uploading}
+              >
+                {saving ? "Saving…" : article ? "Save changes" : "Create article"}
+              </Button>
+              <Link className={styles.backLink} href="/admin" prefetch={false}>Cancel</Link>
+            </div>
+            {deletion}
+          </div>
         </aside>
       </fieldset>
-
-      <div className={`${styles.formActions} px-0.5`}>
-        <Button
-          type="submit"
-          variant="primary"
-          isPending={saving}
-          isDisabled={!editor || !topics.length || saving || uploading}
-        >
-          {saving ? "Saving…" : article ? "Save changes" : "Create article"}
-        </Button>
-        <Link className={styles.backLink} href="/admin" prefetch={false}>Cancel</Link>
-      </div>
     </Form>
   );
 }
@@ -312,7 +311,7 @@ function BodyField({
           </>
         ) : <p className={styles.editorLoading} role="status">Loading editor…</p>}
       </div>
-      {error && <p id={errorId} className={styles.error}>{error}</p>}
+      {error && <AdminFeedback id={errorId} status="danger">{error}</AdminFeedback>}
     </div>
   );
 }

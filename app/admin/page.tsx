@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button, Chip, SearchField } from "@heroui/react";
 import { listAdminArticles, type AdminArticleSummary } from "@/lib/admin/articles";
+import AdminFeedback from "./admin-feedback";
 import { AdminCreateLink, AdminGate, AdminHeader, AdminPage } from "./shell";
 import { adminStyles, adminTable } from "./admin-styles";
 import { DeleteArticle } from "./articles/delete";
@@ -90,7 +91,7 @@ export default function AdminIndex({ searchParams }: { searchParams: Promise<Adm
           return (
             <>
               <AdminHeader title="Articles" session={session} actions={<AdminCreateLink section="articles" />} />
-              {query.deleted === "1" && <p className={adminStyles.notice} role="status">Article deleted.</p>}
+              {query.deleted === "1" && <AdminFeedback status="success" className="mb-5 max-w-3xl">Article deleted.</AdminFeedback>}
               <div className={adminStyles.directory}>
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-kb-line px-4 py-3.5 max-[42rem]:p-3">
                   <nav aria-label="Publication status" className="flex flex-wrap gap-1 rounded-[0.625rem] border border-kb-line bg-kb-panel p-1">

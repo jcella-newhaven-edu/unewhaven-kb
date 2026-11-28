@@ -1,9 +1,10 @@
 "use client";
 
 import { useActionState } from "react";
-import { Alert, AlertDialog, Button } from "@heroui/react";
+import { AlertDialog, Button } from "@heroui/react";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import { deleteArticle } from "@/lib/admin/actions";
+import AdminFeedback from "../admin-feedback";
 import { adminStyles as styles } from "../admin-styles";
 
 export function DeleteArticle({
@@ -44,11 +45,7 @@ export function DeleteArticle({
                     <input type="hidden" name="updatedToken" value={updatedToken} />
                     <AlertDialog.Body>
                       <p><strong>{title}</strong> will be permanently deleted.</p>
-                      {result.error && (
-                        <Alert status="danger" role="alert">
-                          <Alert.Content><Alert.Description>{result.error}</Alert.Description></Alert.Content>
-                        </Alert>
-                      )}
+                      {result.error && <AdminFeedback status="danger" className="mt-3">{result.error}</AdminFeedback>}
                     </AlertDialog.Body>
                     <AlertDialog.Footer>
                       <Button type="button" autoFocus variant="secondary" onPress={close} isDisabled={pending}>Cancel</Button>

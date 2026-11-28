@@ -9,11 +9,13 @@ import {
   articleImageMaxBytes,
   validArticleImageSrc,
 } from "@/lib/article-media";
-import { adminStyles } from "../admin-styles";
+import AdminFeedback from "../admin-feedback";
 
 const imageTypes = articleImageAccept.split(",");
 const limitMiB = articleImageMaxBytes / (1024 * 1024);
 const imageFieldLabel = "text-[0.8125rem] font-[650] text-kb-heading";
+
+type ImageError = { message: string; field?: "source" | "alt" };
 
 export default function ImagePanel({
   editor,
@@ -31,10 +33,14 @@ export default function ImagePanel({
   const [src, setSrc] = useState("");
   const [alt, setAlt] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<ImageError | null>(null);
   const [uploading, setUploading] = useState(false);
   const sourceInput = useRef<HTMLInputElement>(null);
   const pending = useRef<AbortController | null>(null);
+  const errorId = `${formId}-error`;
+  const formatsId = `${formId}-formats`;
+  const sourceError = error?.field === "source";
+  const altError = error?.field === "alt";
 
   useEffect(() => {
     sourceInput.current?.focus();
@@ -54,27 +60,27 @@ export default function ImagePanel({
       attrs: { src: imageSrc, alt: alt.trim() },
     }).run();
     if (inserted) onClose();
-    else setError("Place the cursor where you want the image and try again.");
+    else setError({ message: "Place the cursor where you want the image and try again." });
   }
 
   async function addImage() {
     if (pending.current) return;
-    setError("");
+    setError(null);
     if (!alt.trim()) {
-      setError("Enter alt text that describes the image.");
+      setError({ field: "alt", message: "Enter alt text that describes the image." });
       return;
     }
     if (mode === "url") {
       const imageSrc = src.trim();
       if (!validArticleImageSrc(imageSrc)) {
-        setError("Enter an HTTPS image URL or a site path starting with /.");
+        setError({ field: "source", message: "Enter an HTTPS image URL or a site path starting with /." });
         return;
       }
       insertImage(imageSrc);
       return;
     }
     if (!file || !imageTypes.includes(file.type) || file.size === 0 || file.size > articleImageMaxBytes) {
-      setError(`Choose a PNG, JPEG, GIF, or WebP image up to ${limitMiB} MiB.`);
+      setError({ field: "source", message: `Choose a PNG, JPEG, GIF, or WebP image up to ${limitMiB} MiB.` });
       return;
     }
 
@@ -93,12 +99,12 @@ export default function ImagePanel({
       const result: { src?: unknown; error?: unknown } | null = await response.json().catch(() => null);
       if (request.signal.aborted) return;
       if (!response.ok || !validArticleImageSrc(result?.src)) {
-        setError(typeof result?.error === "string" ? result.error : "The image could not be uploaded. Try again.");
+        setError({ message: typeof result?.error === "string" ? result.error : "The image could not be uploaded. Try again." });
         return;
       }
       insertImage(result.src);
     } catch {
-      if (!request.signal.aborted) setError("The image could not be uploaded. Try again.");
+      if (!request.signal.aborted) setError({ message: "The image could not be uploaded. Try again." });
     } finally {
       if (pending.current === request) {
         pending.current = null;
@@ -111,7 +117,7 @@ export default function ImagePanel({
   function selectMode(next: typeof mode) {
     if (next !== mode) setFile(null);
     setMode(next);
-    setError("");
+    setError(null);
   }
 
   return (
@@ -143,7 +149,12 @@ export default function ImagePanel({
           spellCheck={false}
           placeholder="https://…"
           value={src}
-          onChange={(event) => setSrc(event.target.value)}
+          aria-invalid={sourceError || undefined}
+          aria-describedby={sourceError ? errorId : undefined}
+          onChange={(event) => {
+            setSrc(event.target.value);
+            if (sourceError) setError(null);
+          }}
         />
       ) : (
         <>
@@ -153,11 +164,15 @@ export default function ImagePanel({
             className="min-w-0 max-w-full text-[0.8125rem] text-kb-heading file:me-2 file:min-h-9 file:cursor-pointer file:rounded-md file:border file:border-kb-line file:bg-background file:px-2.5 file:font-[650] file:text-kb-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             type="file"
             accept={articleImageAccept}
-            aria-describedby={`${formId}-formats`}
+            aria-invalid={sourceError || undefined}
+            aria-describedby={sourceError ? `${formatsId} ${errorId}` : formatsId}
             disabled={uploading}
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            onChange={(event) => {
+              setFile(event.target.files?.[0] ?? null);
+              if (sourceError) setError(null);
+            }}
           />
-          <p id={`${formId}-formats`} className="text-[0.8125rem] leading-normal text-kb-muted">PNG, JPEG, GIF, or WebP. Maximum {limitMiB} MiB.</p>
+          <p id={formatsId} className="text-[0.8125rem] leading-normal text-kb-muted">PNG, JPEG, GIF, or WebP. Maximum {limitMiB} MiB.</p>
         </>
       )}
       <label htmlFor={`${formId}-alt`} className={imageFieldLabel}>Alt text</label>
@@ -167,9 +182,14 @@ export default function ImagePanel({
         maxLength={articleImageAltMaxLength}
         disabled={uploading}
         placeholder="Describe what the image shows"
-        onChange={(event) => setAlt(event.target.value)}
+        aria-invalid={altError || undefined}
+        aria-describedby={altError ? errorId : undefined}
+        onChange={(event) => {
+          setAlt(event.target.value);
+          if (altError) setError(null);
+        }}
       />
-      {error && <p className={adminStyles.error} role="alert">{error}</p>}
+      {error && <AdminFeedback id={errorId} status="danger">{error.message}</AdminFeedback>}
       <div className="mt-0.5 flex flex-wrap gap-1.5">
         <Button size="sm" type="button" variant="primary" isPending={uploading} onPress={() => void addImage()}>
           {uploading ? "Uploading…" : "Insert image"}
