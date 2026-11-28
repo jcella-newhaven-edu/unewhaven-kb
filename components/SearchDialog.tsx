@@ -6,6 +6,7 @@ import { Autocomplete } from "react-aria-components/Autocomplete";
 import { Button, Kbd, ListBox, Modal, SearchField } from "@heroui/react";
 import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import type { SearchResult } from "@/lib/data/search";
+import { requestEditorNavigation } from "@/lib/editor-navigation";
 
 // Mac shows ⌘K, everything else Ctrl K. Read from the browser; the server renders the Mac version.
 const noSubscribe = () => () => {};
@@ -136,7 +137,7 @@ function SearchDialog() {
 
   function go(href: string) {
     onOpenChange(false);
-    router.push(href);
+    requestEditorNavigation(() => router.push(href));
   }
 
   const trimmed = query.trim();

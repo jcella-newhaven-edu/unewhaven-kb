@@ -148,10 +148,10 @@ function plainText(node: JSONContent): string {
   return node.text ?? node.content?.map(plainText).join("") ?? "";
 }
 
-function headingId(title: string, ids: Set<string>) {
+function headingId(title: string, ids: Set<string>, prefix: string) {
   const slug = title.normalize("NFKD").toLowerCase()
     .replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
-  const base = `section-${slug || "heading"}`;
+  const base = `${prefix}-${slug || "heading"}`;
   let id = base;
   for (let suffix = 2; ids.has(id); suffix += 1) id = `${base}-${suffix}`;
   ids.add(id);
@@ -159,7 +159,7 @@ function headingId(title: string, ids: Set<string>) {
 }
 
 /** Prepare a renderable document and use its heading IDs for both outlines. */
-export function prepareArticleBody(body: JSONContent, bodyText: string) {
+export function prepareArticleBody(body: JSONContent, bodyText: string, headingPrefix = "section") {
   const headings: ArticleHeading[] = [];
   const ids = new Set<string>();
   let hasContent = false;
@@ -181,7 +181,7 @@ export function prepareArticleBody(body: JSONContent, bodyText: string) {
       const title = plainText(prepared).replace(/\s+/g, " ").trim();
       if (title) {
         const level = node.attrs?.level === 2 ? 2 : 3;
-        const id = headingId(title, ids);
+        const id = headingId(title, ids, headingPrefix);
         headings.push({ id, title, level });
         prepared.attrs = { ...node.attrs, id };
       }
@@ -208,7 +208,7 @@ export function prepareArticleBody(body: JSONContent, bodyText: string) {
   };
 }
 
-/** Render the prepared Tiptap document on the server without loading an editor. */
+/** Render the prepared Tiptap document without loading an editor. */
 export default function ArticleBody({ body }: { body: JSONContent }) {
   return renderArticle({ content: body });
 }

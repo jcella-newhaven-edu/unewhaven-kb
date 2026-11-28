@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@heroui/react";
 import { getArticle, getArticleSlugs, readingMinutes } from "@/lib/data/articles";
 import { getTopicTrail } from "@/lib/data/topics";
-import ArticleBody, { type ArticleHeading, prepareArticleBody } from "@/components/ArticleBody";
+import { prepareArticleBody } from "@/components/ArticleBody";
+import { ArticleHeader, ArticleText, OutlineLinks } from "@/components/ArticlePresentation";
 import TopicSidebar from "@/components/TopicSidebar";
 
 // Prerender every published article at build time. New ones are rendered on first visit.
@@ -23,23 +24,6 @@ export async function generateMetadata({ params }: PageProps<"/articles/[slug]">
 const dateFormat = new Intl.DateTimeFormat("en-US", {
   month: "short", day: "numeric", year: "numeric", timeZone: "UTC",
 });
-
-function OutlineLinks({ headings }: { headings: ArticleHeading[] }) {
-  return (
-    <ul className="m-0 list-none p-0">
-      {headings.map(({ id, title }) => (
-        <li key={id}>
-          <a
-            href={`#${encodeURIComponent(id)}`}
-            className="block py-[0.3125rem] text-[0.8125rem] leading-[1.45] wrap-anywhere text-kb-muted hover:text-link hover:underline"
-          >
-            {title}
-          </a>
-        </li>
-      ))}
-    </ul>
-  );
-}
 
 // Read params inside Suspense to keep the instant shell for new articles.
 async function ArticleContent({ params }: Pick<PageProps<"/articles/[slug]">, "params">) {
@@ -69,28 +53,20 @@ async function ArticleContent({ params }: Pick<PageProps<"/articles/[slug]">, "p
         className="grid grid-cols-[var(--article-sidebar-width,0px)_minmax(0,1fr)_var(--article-outline-width,0px)] items-start [grid-template-areas:'topics_article_outline'] min-[791px]:has-[[data-article-sidebar]]:[--article-sidebar-width:13.1875rem] min-[1071px]:has-[[data-article-sidebar]]:[--article-sidebar-width:15.4375rem] min-[1071px]:has-[[data-article-outline]]:[--article-outline-width:12.625rem]"
       >
         <article className="min-w-0 max-w-[49rem] pb-[2.375rem] wrap-anywhere [grid-area:article] min-[791px]:pe-3">
-          <header>
-            <h1 className="m-0 text-[clamp(2rem,3.15vw,2.9375rem)] leading-[1.07] font-[750] tracking-[-0.045em] text-kb-heading">
-              {article.title}
-            </h1>
-            {article.summary && (
-              <p className="mt-3 max-w-[40rem] text-[1.0625rem] leading-[1.55] text-kb-muted">{article.summary}</p>
-            )}
+          <ArticleHeader title={article.title} summary={article.summary}>
             <p className="mt-3 flex flex-wrap gap-[0.45rem] text-xs text-kb-muted">
               <span>Updated <time dateTime={article.updated.toISOString()}>{dateFormat.format(article.updated)}</time></span>
               <span aria-hidden="true">·</span>
               <span>{readingMinutes(article.bodyText)} min read</span>
             </p>
-          </header>
+          </ArticleHeader>
           {hasOutline && (
             <details className="mt-[1.125rem] rounded-lg border border-kb-line bg-kb-panel px-[0.8125rem] py-2.5 min-[1071px]:hidden">
               <summary className="cursor-pointer text-sm font-[650] text-kb-heading">On this page</summary>
               <div className="mt-1.5 ps-[1.0625rem]"><OutlineLinks headings={headings} /></div>
             </details>
           )}
-          <div className="text-[0.9375rem] leading-[1.6] text-kb-muted [&>:first-child]:mt-[1.5625rem]">
-            <ArticleBody body={content} />
-          </div>
+          <ArticleText body={content} />
         </article>
 
         <TopicSidebar rootSlug={trail[0]?.slug} currentSlug={slug} />

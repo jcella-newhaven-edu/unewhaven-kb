@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useId, useState, type ReactNode } from "react";
+import { useActionState, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type { JSONContent } from "@tiptap/core";
 import { StarterKit } from "@tiptap/starter-kit";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
@@ -11,6 +11,7 @@ import { slugFromTitle } from "@/lib/admin/slug";
 import AdminFeedback from "../admin-feedback";
 import AdminSelect from "../admin-select";
 import { adminStyles as styles } from "../admin-styles";
+import DraftPreview from "./draft-preview";
 import {
   EditorArticleAccordion,
   EditorArticleAccordionItem,
@@ -20,6 +21,7 @@ import {
   EditorArticleTabs,
 } from "./editor-nodes";
 import FormattingToolbar from "./formatting-toolbar";
+import UnsavedChangesWarning from "./unsaved-changes";
 
 type Topic = { slug: string; title: string; parentSlug: string | null };
 type ExistingArticle = {
@@ -95,14 +97,17 @@ export default function AdminArticleForm({
   const [title, setTitle] = useState(article?.title ?? "");
   const [summary, setSummary] = useState(article?.summary ?? "");
   const [topic, setTopic] = useState(article?.topicSlug ?? "");
-  const [extraTopics, setExtraTopics] = useState(() =>
+  const [initialExtraTopics] = useState(() =>
     article?.topicSlugs?.filter((slug) => slug !== article.topicSlug) ?? [],
   );
+  const [extraTopics, setExtraTopics] = useState(initialExtraTopics);
   const [published, setPublished] = useState(article?.published ? "true" : "false");
   const [slugOverride, setSlugOverride] = useState<string>();
   const [uploading, setUploading] = useState(false);
   const [body, setBody] = useState<JSONContent | null>(() => article ? null : emptyDocument);
   const [initialBody] = useState(() => editorContent(article));
+  const originalDocument = useRef<Editor["state"]["doc"] | null>(null);
+  const [bodyChanged, setBodyChanged] = useState(false);
   const editor = useEditor({
     extensions,
     content: initialBody,
@@ -115,7 +120,13 @@ export default function AdminArticleForm({
         spellcheck: "true",
       },
     },
-    onUpdate: ({ editor }) => setBody(editor.getJSON()),
+    onCreate: ({ editor }) => {
+      originalDocument.current = editor.state.doc;
+    },
+    onUpdate: ({ editor }) => {
+      setBody(editor.getJSON());
+      setBodyChanged(!originalDocument.current?.eq(editor.state.doc));
+    },
   });
 
   useEffect(() => {
@@ -126,6 +137,14 @@ export default function AdminArticleForm({
   const saveError = result.error || (Object.keys(errors).length ? "Review the highlighted fields." : undefined);
   const topicsBySlug = new Map(topics.map((item) => [item.slug, item.title]));
   const slug = slugOverride ?? article?.slug ?? slugFromTitle(title);
+  const hasUnsavedChanges = bodyChanged
+    || title !== (article?.title ?? "")
+    || summary !== (article?.summary ?? "")
+    || topic !== (article?.topicSlug ?? "")
+    || slug !== (article?.slug ?? "")
+    || published !== (article?.published ? "true" : "false")
+    || extraTopics.length !== initialExtraTopics.length
+    || extraTopics.some((candidate) => !initialExtraTopics.includes(candidate));
 
   function topicLabel({ title, parentSlug }: Topic) {
     const parent = parentSlug ? topicsBySlug.get(parentSlug) : undefined;
@@ -258,7 +277,9 @@ export default function AdminArticleForm({
           {history}
           <div className="grid gap-3">
             {saveError && <AdminFeedback status="danger">{saveError}</AdminFeedback>}
-            {saved && !saving && !saveError && <AdminFeedback status="success">Article saved.</AdminFeedback>}
+            {saved && !hasUnsavedChanges && !saving && !saveError && (
+              <AdminFeedback status="success">Article saved.</AdminFeedback>
+            )}
             <div className={styles.formActions}>
               <Button
                 type="submit"
@@ -268,12 +289,19 @@ export default function AdminArticleForm({
               >
                 {saving ? "Saving…" : article ? "Save changes" : "Create article"}
               </Button>
+              <DraftPreview
+                title={title}
+                summary={summary}
+                body={body ?? initialBody}
+                isDisabled={!editor || saving || uploading}
+              />
               <Link className={styles.backLink} href="/admin" prefetch={false}>Cancel</Link>
             </div>
             {deletion}
           </div>
         </aside>
       </fieldset>
+      <UnsavedChangesWarning active={hasUnsavedChanges} />
     </Form>
   );
 }
