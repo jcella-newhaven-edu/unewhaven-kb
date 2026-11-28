@@ -81,15 +81,16 @@ async function ArticleContent({ params }: Pick<PageProps<"/articles/[slug]">, "p
               <div className="mt-1.5 ps-[1.0625rem]"><OutlineLinks headings={headings} /></div>
             </details>
           )}
-
-          <div className="text-[0.9375rem] leading-[1.6] text-kb-muted [&>:first-child]:mt-[1.5625rem]">
-            <ArticleBody body={content} />
-          </div>
           <p className="mt-6 flex flex-wrap gap-[0.45rem] text-xs text-kb-muted">
             <span>Updated <time dateTime={article.updated.toISOString()}>{dateFormat.format(article.updated)}</time></span>
             <span aria-hidden="true">·</span>
             <span>{readingMinutes(article.bodyText)} min read</span>
           </p>
+
+          <div className="text-[0.9375rem] leading-[1.6] text-kb-muted [&>:first-child]:mt-[1.5625rem]">
+            <ArticleBody body={content} />
+          </div>
+          
         </article>
 
         <TopicSidebar rootSlug={trail[0]?.slug} currentSlug={slug} />
