@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { ArrowRightIcon, ChevronRightIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
-import { Breadcrumbs, Card } from "@heroui/react";
+import { ChevronRightIcon } from "@heroicons/react/24/outline";
+import { Breadcrumbs } from "@heroui/react";
 import TopicIcon from "@/components/TopicIcon";
-import { getArticlesByTopics, type ArticleSummary } from "@/lib/data/articles";
+import { getArticlesByTopics } from "@/lib/data/articles";
 import { getAllTopics, getSubtopics, getTopicTrail } from "@/lib/data/topics";
+import ArticleCardList from "../../article-card-list";
 import { browseFocus, browseStyles as styles } from "../../browse-styles";
 
 // Prerender every topic and subtopic at build time. New ones are rendered on first visit.
@@ -21,13 +22,6 @@ export async function generateMetadata({ params }: PageProps<"/topics/[topic]">)
   const topic = trail.at(-1);
   return topic ? { title: topic.title, description: topic.description || undefined } : {};
 }
-
-const updatedDate = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  timeZone: "UTC",
-});
 
 // params is read inside <Suspense> so topics that weren't prerendered still get an instant shell.
 async function TopicContent({ params }: Pick<PageProps<"/topics/[topic]">, "params">) {
@@ -76,7 +70,7 @@ async function TopicContent({ params }: Pick<PageProps<"/topics/[topic]">, "para
             <h2 id="topic-articles-heading" className="mb-4 text-xl font-bold tracking-tight text-kb-heading">
               Articles
             </h2>
-            <ArticleList articles={ownArticles} />
+            <ArticleCardList articles={ownArticles} heading="h3" />
           </section>
         )}
 
@@ -105,7 +99,7 @@ async function TopicContent({ params }: Pick<PageProps<"/topics/[topic]">, "para
                   {subtopic.description && <p className="mt-1 max-w-2xl text-sm leading-relaxed text-kb-muted wrap-anywhere">{subtopic.description}</p>}
                 </div>
               </div>
-              {list.length > 0 ? <ArticleList articles={list} /> : <EmptyArticles />}
+              {list.length > 0 ? <ArticleCardList articles={list} heading="h3" /> : <EmptyArticles />}
             </section>
           );
         })}
@@ -119,37 +113,6 @@ function EmptyArticles() {
     <p className="rounded-2xl border border-dashed border-kb-line px-4 py-5 text-sm text-kb-muted">
       No articles yet.
     </p>
-  );
-}
-
-function ArticleList({ articles }: { articles: ArticleSummary[] }) {
-  return (
-    <ul role="list" className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,25rem),1fr))] gap-3 sm:gap-4">
-      {articles.map((article) => (
-        <li key={article.slug} className="min-w-0">
-          <Card className="h-full gap-0 rounded-2xl border border-kb-line bg-background p-0 shadow-none motion-safe:transition-colors hover:border-focus focus-within:border-focus">
-            <Link
-              href={`/articles/${encodeURIComponent(article.slug)}`}
-              className={`group flex h-full items-start gap-3 rounded-[inherit] p-4 no-underline motion-safe:transition-colors hover:bg-kb-panel sm:gap-4 sm:p-5 ${browseFocus}`}
-            >
-              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-kb-panel text-link group-hover:bg-kb-highlight">
-                <DocumentTextIcon aria-hidden="true" className="size-5" />
-              </span>
-              <div className="flex min-w-0 flex-1 flex-col self-stretch">
-                <h3 className="text-base leading-snug font-bold text-kb-heading wrap-anywhere group-hover:underline group-hover:underline-offset-4">
-                  {article.title}
-                </h3>
-                {article.summary && <p className="mt-1 text-sm leading-relaxed text-kb-muted wrap-anywhere">{article.summary}</p>}
-                <p className="mt-auto pt-3 text-xs leading-normal text-kb-muted">
-                  Updated <time dateTime={article.updated.toISOString()}>{updatedDate.format(article.updated)}</time>
-                </p>
-              </div>
-              <ArrowRightIcon aria-hidden="true" className="mt-1 size-4 shrink-0 text-kb-muted group-hover:text-link motion-safe:transition-transform motion-safe:group-hover:translate-x-0.5" />
-            </Link>
-          </Card>
-        </li>
-      ))}
-    </ul>
   );
 }
 

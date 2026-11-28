@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
-import { ChevronRightIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { Breadcrumbs, Button } from "@heroui/react";
 import { searchArticles } from "@/lib/data/search";
+import ArticleCardList from "../article-card-list";
 import { browseFocus, browseStyles as styles } from "../browse-styles";
 
 export const metadata: Metadata = { title: "Search" };
@@ -26,27 +26,7 @@ async function Results({ searchParams }: Pick<PageProps<"/search">, "searchParam
           ? `No articles match “${query}”.`
           : `${results.length} ${results.length === 1 ? "article matches" : "articles match"} “${query}”`}
       </p>
-      {results.length > 0 && (
-        <ul className={styles.list}>
-          {results.map((r) => (
-            <li key={r.slug} className={styles.listItem}>
-              <Link href={`/articles/${encodeURIComponent(r.slug)}`} className={styles.row}>
-                <div className="min-w-0">
-                  <h2 className={styles.rowTitle}>{r.title}</h2>
-                  {r.summary && <p className={styles.summary}>{r.summary}</p>}
-                </div>
-                <ChevronRightIcon aria-hidden="true" className={styles.arrow} />
-              </Link>
-              <Link
-                href={`/topics/${encodeURIComponent(r.topicSlug)}`}
-                className={`mb-3.5 inline-block text-[0.8125rem] leading-[1.45] text-link underline-offset-[0.2em] ${browseFocus}`}
-              >
-                {r.topicTitle}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      {results.length > 0 && <ArticleCardList articles={results} className="mt-6" />}
     </>
   );
 }

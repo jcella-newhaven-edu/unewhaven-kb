@@ -8,6 +8,7 @@ import { Alert, Button, Description, FieldError, Form, Input, InputGroup, Label,
 import Link from "next/link";
 import { createArticle, updateArticle } from "@/lib/admin/actions";
 import { slugFromTitle } from "@/lib/admin/slug";
+import AdminSelect from "../admin-select";
 import { adminStyles as styles } from "../admin-styles";
 import {
   EditorArticleAccordion,
@@ -33,6 +34,10 @@ type ExistingArticle = {
 };
 
 const emptyDocument: JSONContent = { type: "doc", content: [{ type: "paragraph" }] };
+const publicationStatuses = [
+  { value: "false", label: "Draft" },
+  { value: "true", label: "Published" },
+];
 const fieldHint = "text-[.8125rem] leading-[1.5] text-kb-muted";
 const editorSurface = [
   "[&_.tiptap]:min-h-60 min-[58rem]:[&_.tiptap]:min-h-88 [&_.tiptap]:p-4 [&_.tiptap]:leading-[1.65] [&_.tiptap]:text-kb-heading [&_.tiptap]:[overflow-wrap:anywhere]",
@@ -88,9 +93,7 @@ export default function AdminArticleForm({
 }) {
   const [result, save, saving] = useActionState(article ? updateArticle : createArticle, {});
   const formId = useId();
-  const topicId = `${formId}-topic`;
   const extraTopicsId = `${formId}-extra-topics`;
-  const statusId = `${formId}-status`;
   const bodyLabelId = `${formId}-body-label`;
   const settingsId = `${formId}-settings`;
   const [title, setTitle] = useState(article?.title ?? "");
@@ -175,42 +178,30 @@ export default function AdminArticleForm({
         <aside className="grid min-w-0 gap-4" aria-labelledby={settingsId}>
           <div className="grid min-w-0 gap-4 rounded-[.875rem] border border-kb-line bg-kb-panel p-4.5">
             <h2 id={settingsId} className="text-[1.0625rem] font-bold tracking-[-.025em] text-kb-heading">Article settings</h2>
-            <div className={styles.field}>
-              <label htmlFor={statusId}>Publication status</label>
-              <select
-                id={statusId}
-                name="published"
-                value={published}
-                onChange={(event) => setPublished(event.target.value)}
-                aria-invalid={errors.published ? true : undefined}
-                aria-describedby={errors.published ? `${statusId}-error` : undefined}
-              >
-                <option value="false">Draft</option>
-                <option value="true">Published</option>
-              </select>
-              {errors.published && <p id={`${statusId}-error`} className={styles.error}>{errors.published}</p>}
-            </div>
+            <AdminSelect
+              label="Publication status"
+              name="published"
+              options={publicationStatuses}
+              value={published}
+              onChange={setPublished}
+              error={errors.published}
+              isDisabled={saving}
+            />
 
-            <div className={styles.field}>
-              <label htmlFor={topicId}>Primary topic</label>
-              <select
-                id={topicId}
-                name="topicSlug"
-                value={topic}
-                onChange={(event) => {
-                  const selected = event.target.value;
-                  setTopic(selected);
-                  setExtraTopics((slugs) => slugs.filter((candidate) => candidate !== selected));
-                }}
-                required
-                aria-invalid={errors.topicSlug ? true : undefined}
-                aria-describedby={errors.topicSlug ? `${topicId}-error` : undefined}
-              >
-                <option value="">Select a topic</option>
-                {topics.map((item) => <option key={item.slug} value={item.slug}>{topicLabel(item)}</option>)}
-              </select>
-              {errors.topicSlug && <p id={`${topicId}-error`} className={styles.error}>{errors.topicSlug}</p>}
-            </div>
+            <AdminSelect
+              label="Primary topic"
+              name="topicSlug"
+              options={topics.map((item) => ({ value: item.slug, label: topicLabel(item) }))}
+              value={topic}
+              onChange={(selected) => {
+                setTopic(selected);
+                setExtraTopics((slugs) => slugs.filter((candidate) => candidate !== selected));
+              }}
+              placeholder="Select a topic"
+              error={errors.topicSlug}
+              isRequired
+              isDisabled={saving}
+            />
 
             {topics.length > 1 && (
               <fieldset className="grid min-w-0 gap-1.5" aria-describedby={errors.additionalTopicSlug ? `${extraTopicsId}-error` : undefined}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useId, useState } from "react";
+import { useActionState, useState } from "react";
 import { Alert, Button, Description, FieldError, Form, Input, Label, ListBox, Select, TextArea, TextField } from "@heroui/react";
 import Link from "next/link";
 import TopicIcon from "@/components/TopicIcon";
@@ -8,6 +8,7 @@ import type { ManagedTopic } from "@/lib/admin/topics";
 import { createTopic, updateTopic } from "@/lib/admin/topic-actions";
 import { slugFromTitle } from "@/lib/admin/slug";
 import { defaultTopicIcon, isTopicIcon, topicIconOptions } from "@/lib/topic-icons";
+import AdminSelect from "../admin-select";
 import { adminStyles as styles } from "../admin-styles";
 
 export default function TopicForm({
@@ -24,12 +25,15 @@ export default function TopicForm({
   const [icon, setIcon] = useState(isTopicIcon(topic?.icon) ? topic.icon : defaultTopicIcon);
   const [parent, setParent] = useState(topic?.parentSlug ?? "");
   const [sortOrder, setSortOrder] = useState(String(topic?.sortOrder ?? 0));
-  const parentId = useId();
   const errors = result.fieldErrors ?? {};
   const currentParent = topic?.parentSlug;
-  const currentParentUnavailable = currentParent && !parentTopics.some(({ slug }) => slug === currentParent);
-  const parentError = errors.parentSlug ? `${parentId}-error` : undefined;
-  const parentHint = topic?.childCount ? `${parentId}-hint` : undefined;
+  const parentOptions = [
+    { value: "", label: "None (top-level topic)" },
+    ...parentTopics.map(({ slug, title }) => ({ value: slug, label: title })),
+  ];
+  if (currentParent && !parentTopics.some(({ slug }) => slug === currentParent)) {
+    parentOptions.splice(1, 0, { value: currentParent, label: `${topic?.parentTitle || currentParent} (unavailable)` });
+  }
 
   return (
     <Form
@@ -130,29 +134,16 @@ export default function TopicForm({
         </Select>
 
         <div className={styles.fieldPair}>
-          <div className={styles.field}>
-            <label htmlFor={parentId}>Parent topic</label>
-            <select
-              id={parentId}
-              name="parentSlug"
-              value={parent}
-              onChange={(event) => setParent(event.target.value)}
-              aria-invalid={errors.parentSlug ? true : undefined}
-              aria-describedby={[parentHint, parentError].filter(Boolean).join(" ") || undefined}
-            >
-              <option value="">None (top-level topic)</option>
-              {currentParentUnavailable && (
-                <option value={currentParent}>{topic?.parentTitle || currentParent} (unavailable)</option>
-              )}
-              {parentTopics.map(({ slug, title }) => <option key={slug} value={slug}>{title}</option>)}
-            </select>
-            {parentHint && (
-              <p id={parentHint} className="text-[0.8125rem] text-kb-muted">
-                Move its subtopics before making this topic a subtopic.
-              </p>
-            )}
-            {parentError && <p id={parentError} className={styles.error}>{errors.parentSlug}</p>}
-          </div>
+          <AdminSelect
+            label="Parent topic"
+            name="parentSlug"
+            options={parentOptions}
+            value={parent}
+            onChange={setParent}
+            description={topic?.childCount ? "Move its subtopics before making this topic a subtopic." : undefined}
+            error={errors.parentSlug}
+            isDisabled={saving}
+          />
           <TextField
             className={styles.field}
             name="sortOrder"

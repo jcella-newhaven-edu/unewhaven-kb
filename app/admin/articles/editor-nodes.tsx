@@ -27,6 +27,7 @@ import {
   isArticleAlertStatus,
 } from "@/lib/article-alert";
 import { articleImageAltMaxLength, validArticleImageSrc } from "@/lib/article-media";
+import AdminSelect from "../admin-select";
 import { adminStyles } from "../admin-styles";
 
 const nodePanel = "my-3 overflow-hidden rounded-[0.625rem] border border-kb-line bg-kb-panel";
@@ -34,6 +35,7 @@ const nodeToolbar = "flex flex-wrap items-center gap-2 px-2.5 py-2 text-[0.8125r
 const nodeField = `${nodeToolbar} [&>input]:min-w-32 [&>input]:flex-1 [&>label]:font-[650]`;
 const maxPanels = 8;
 const maxTitleLength = 80;
+const alertTypes = Object.entries(articleAlertStatuses).map(([value, label]) => ({ value, label }));
 
 const groups = {
   articleTabs: {
@@ -92,7 +94,6 @@ function ImageView({ node, updateAttributes, deleteNode, selected }: NodeViewPro
 }
 
 function AlertView({ editor, node, updateAttributes, deleteNode }: NodeViewProps) {
-  const typeId = useId();
   const titleId = useId();
   const { status, title } = node.attrs;
   const alertStatus = isArticleAlertStatus(status) ? status : defaultArticleAlertStatus;
@@ -102,22 +103,18 @@ function AlertView({ editor, node, updateAttributes, deleteNode }: NodeViewProps
       <ArticleAlert status={alertStatus} title={null}>
         <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2" contentEditable={false}>
           <div className="grid min-w-0 gap-2 min-[36rem]:grid-cols-[minmax(7rem,0.55fr)_minmax(0,1fr)]">
-            <div className={adminStyles.field}>
-              <label htmlFor={typeId}>Alert type</label>
-              <select
-                id={typeId}
-                value={alertStatus}
-                onChange={(event) => updateAttributes({ status: event.target.value })}
-              >
-                {Object.entries(articleAlertStatuses).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </div>
+            <AdminSelect
+              label="Alert type"
+              options={alertTypes}
+              value={alertStatus}
+              onChange={(status) => updateAttributes({ status })}
+            />
             <div className={adminStyles.field}>
               <label htmlFor={titleId}>Alert title</label>
               <Input
                 id={titleId}
+                fullWidth
+                className="min-w-0"
                 value={typeof title === "string" ? title : ""}
                 maxLength={articleAlertTitleMaxLength}
                 placeholder="Optional"
