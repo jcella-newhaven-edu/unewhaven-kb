@@ -55,7 +55,7 @@ function NavbarView({ pathname }: { pathname: string | null }) {
               aria-current={isBrowsing ? "true" : undefined}
               className={`${navLink} ${isBrowsing ? "underline" : ""}`}
             >
-              Browse guides
+              Browse Topics
             </Link>
             <a href={IT_SUPPORT_URL} className={navLink}>
               Help Desk <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />

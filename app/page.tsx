@@ -213,9 +213,9 @@ export default async function Home() {
           </div>
           <a
             className={`inline-flex min-h-10.5 flex-none items-center gap-1.5 rounded-[0.625rem] border border-kb-line bg-background px-3 text-[0.8125rem] font-[650] whitespace-nowrap text-kb-heading hover:border-link hover:bg-kb-hover ${linkFocus}`}
-            href={IT_SUPPORT_URL}
+            href="https://supportservices.newhaven.edu/"
           >
-            Contact IT <ArrowUpRightIcon aria-hidden="true" className="size-4 flex-none" />
+            Contact the Help Desk <ArrowUpRightIcon aria-hidden="true" className="size-4 flex-none" />
           </a>
         </section>
 
