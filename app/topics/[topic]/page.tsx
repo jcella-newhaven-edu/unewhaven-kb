@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { ChevronRightIcon } from "@heroicons/react/24/outline";
-import { Breadcrumbs } from "@heroui/react";
+import { ArrowRightIcon, ChevronRightIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
+import { Breadcrumbs, Card } from "@heroui/react";
+import TopicIcon from "@/components/TopicIcon";
 import { getArticlesByTopics, type ArticleSummary } from "@/lib/data/articles";
 import { getAllTopics, getSubtopics, getTopicTrail } from "@/lib/data/topics";
 import { browseFocus, browseStyles as styles } from "../../browse-styles";
@@ -21,8 +22,12 @@ export async function generateMetadata({ params }: PageProps<"/topics/[topic]">)
   return topic ? { title: topic.title, description: topic.description || undefined } : {};
 }
 
-const formatDate = (date: Date) =>
-  new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(date);
+const updatedDate = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
 
 // params is read inside <Suspense> so topics that weren't prerendered still get an instant shell.
 async function TopicContent({ params }: Pick<PageProps<"/topics/[topic]">, "params">) {
@@ -39,8 +44,9 @@ async function TopicContent({ params }: Pick<PageProps<"/topics/[topic]">, "para
 
   return (
     <>
-      <Breadcrumbs>
+      <Breadcrumbs className="flex-wrap">
         <Breadcrumbs.Item href="/">Home</Breadcrumbs.Item>
+        <Breadcrumbs.Item href="/topics">Topics</Breadcrumbs.Item>
         {trail.slice(0, -1).map((t) => (
           <Breadcrumbs.Item key={t.slug} href={`/topics/${encodeURIComponent(t.slug)}`}>
             {t.title}
@@ -49,61 +55,98 @@ async function TopicContent({ params }: Pick<PageProps<"/topics/[topic]">, "para
         <Breadcrumbs.Item>{topic.title}</Breadcrumbs.Item>
       </Breadcrumbs>
 
-      <h1 className={styles.heading}>{topic.title}</h1>
-      {topic.description && <p className={styles.intro}>{topic.description}</p>}
+      <header className="mt-5 flex flex-wrap items-start gap-4 rounded-3xl border border-kb-line bg-linear-to-br from-kb-panel to-background p-5 sm:gap-5 sm:p-8">
+        <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-kb-highlight text-link sm:size-14">
+          <TopicIcon icon={topic.icon} className="size-6 sm:size-7" />
+        </span>
+        <div className="min-w-0 basis-full flex-1 sm:basis-0">
+          <h1 className="text-[clamp(1.875rem,4vw,2.75rem)] leading-[1.1] font-[750] tracking-[-0.045em] text-kb-heading wrap-anywhere">
+            {topic.title}
+          </h1>
+          {topic.description && <p className="mt-2 max-w-2xl text-base leading-relaxed text-kb-muted wrap-anywhere">{topic.description}</p>}
+        </div>
+        <p className="self-start rounded-full border border-kb-line bg-background px-3 py-1 text-sm font-medium whitespace-nowrap text-kb-muted">
+          {articles.length} {articles.length === 1 ? "article" : "articles"}
+        </p>
+      </header>
 
-      {articles.length === 0 && <p className={styles.status}>No articles in this topic yet.</p>}
-
-      <ArticleList articles={ownArticles} />
-
-      {subtopics.map((subtopic) => {
-        const list = articlesIn(subtopic.slug);
-        return (
-          <section key={subtopic.slug} aria-labelledby={`subtopic-${subtopic.slug}`} className="mt-10 max-w-[50.625rem]">
-            <h2 id={`subtopic-${subtopic.slug}`} className="text-2xl font-[720] tracking-[-0.035em] text-kb-heading wrap-anywhere">
-              <Link
-                href={`/topics/${encodeURIComponent(subtopic.slug)}`}
-                className={`hover:underline hover:underline-offset-[0.23em] ${browseFocus}`}
-              >
-                {subtopic.title}
-              </Link>
+      <div className="mt-8 flex flex-col gap-8 sm:mt-10 sm:gap-10">
+        {ownArticles.length > 0 && (
+          <section aria-labelledby="topic-articles-heading">
+            <h2 id="topic-articles-heading" className="mb-4 text-xl font-bold tracking-tight text-kb-heading">
+              Articles
             </h2>
-            {subtopic.description && <p className={styles.summary}>{subtopic.description}</p>}
-            {list.length > 0 ? (
-              <ArticleList articles={list} headingLevel="h3" />
-            ) : (
-              <p className={styles.status}>No articles yet.</p>
-            )}
+            <ArticleList articles={ownArticles} />
           </section>
-        );
-      })}
+        )}
+
+        {articles.length === 0 && subtopics.length === 0 && <EmptyArticles />}
+
+        {subtopics.map((subtopic) => {
+          const list = articlesIn(subtopic.slug);
+          const headingId = `subtopic-${subtopic.slug}`;
+
+          return (
+            <section key={subtopic.slug} aria-labelledby={headingId} className="border-t border-kb-line pt-6">
+              <div className="mb-4 flex items-start gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-kb-highlight text-link">
+                  <TopicIcon icon={subtopic.icon} className="size-5" />
+                </span>
+                <div className="min-w-0">
+                  <h2 id={headingId} className="text-xl font-bold tracking-tight text-kb-heading wrap-anywhere">
+                    <Link
+                      href={`/topics/${encodeURIComponent(subtopic.slug)}`}
+                      className={`group inline-flex items-center gap-2 rounded-sm hover:underline hover:underline-offset-4 ${browseFocus}`}
+                    >
+                      <span>{subtopic.title}</span>
+                      <ChevronRightIcon aria-hidden="true" className="size-4 shrink-0 text-kb-muted group-hover:text-link" />
+                    </Link>
+                  </h2>
+                  {subtopic.description && <p className="mt-1 max-w-2xl text-sm leading-relaxed text-kb-muted wrap-anywhere">{subtopic.description}</p>}
+                </div>
+              </div>
+              {list.length > 0 ? <ArticleList articles={list} /> : <EmptyArticles />}
+            </section>
+          );
+        })}
+      </div>
     </>
   );
 }
 
-function ArticleList({
-  articles,
-  headingLevel: Heading = "h2",
-}: {
-  articles: ArticleSummary[];
-  headingLevel?: "h2" | "h3";
-}) {
-  if (articles.length === 0) return null;
-
+function EmptyArticles() {
   return (
-    <ul className={styles.list}>
+    <p className="rounded-2xl border border-dashed border-kb-line px-4 py-5 text-sm text-kb-muted">
+      No articles yet.
+    </p>
+  );
+}
+
+function ArticleList({ articles }: { articles: ArticleSummary[] }) {
+  return (
+    <ul role="list" className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,25rem),1fr))] gap-3 sm:gap-4">
       {articles.map((article) => (
-        <li key={article.slug} className={styles.listItem}>
-          <Link href={`/articles/${encodeURIComponent(article.slug)}`} className={styles.row}>
-            <div className="min-w-0">
-              <Heading className={styles.rowTitle}>{article.title}</Heading>
-              {article.summary && <p className={styles.summary}>{article.summary}</p>}
-              <p className={styles.meta}>
-                Last Updated <time dateTime={article.updated.toISOString()}>{formatDate(article.updated)}</time>
-              </p>
-            </div>
-            <ChevronRightIcon aria-hidden="true" className={styles.arrow} />
-          </Link>
+        <li key={article.slug} className="min-w-0">
+          <Card className="h-full gap-0 rounded-2xl border border-kb-line bg-background p-0 shadow-none motion-safe:transition-colors hover:border-focus focus-within:border-focus">
+            <Link
+              href={`/articles/${encodeURIComponent(article.slug)}`}
+              className={`group flex h-full items-start gap-3 rounded-[inherit] p-4 no-underline motion-safe:transition-colors hover:bg-kb-panel sm:gap-4 sm:p-5 ${browseFocus}`}
+            >
+              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-kb-panel text-link group-hover:bg-kb-highlight">
+                <DocumentTextIcon aria-hidden="true" className="size-5" />
+              </span>
+              <div className="flex min-w-0 flex-1 flex-col self-stretch">
+                <h3 className="text-base leading-snug font-bold text-kb-heading wrap-anywhere group-hover:underline group-hover:underline-offset-4">
+                  {article.title}
+                </h3>
+                {article.summary && <p className="mt-1 text-sm leading-relaxed text-kb-muted wrap-anywhere">{article.summary}</p>}
+                <p className="mt-auto pt-3 text-xs leading-normal text-kb-muted">
+                  Updated <time dateTime={article.updated.toISOString()}>{updatedDate.format(article.updated)}</time>
+                </p>
+              </div>
+              <ArrowRightIcon aria-hidden="true" className="mt-1 size-4 shrink-0 text-kb-muted group-hover:text-link motion-safe:transition-transform motion-safe:group-hover:translate-x-0.5" />
+            </Link>
+          </Card>
         </li>
       ))}
     </ul>
