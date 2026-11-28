@@ -27,8 +27,16 @@ export async function listManagedTopics(): Promise<ManagedTopic[]> {
            t.xmin::text AS "updatedToken"
     FROM topics t
     LEFT JOIN topics p ON NULLIF(t.parent_slug, '') = p.slug
-    LEFT JOIN (SELECT topic_slug, count(*)::integer AS article_count FROM article_topic_memberships GROUP BY topic_slug) a
-      ON a.topic_slug = t.slug
+    LEFT JOIN (
+      SELECT topic_slug, count(*)::integer AS article_count
+      FROM (
+        SELECT article_slug, topic_slug FROM article_topic_memberships
+        UNION
+        SELECT d.article_slug, assigned.topic_slug FROM article_working_drafts d
+        CROSS JOIN LATERAL unnest(ARRAY[d.topic_slug] || d.topic_slugs) AS assigned(topic_slug)
+      ) assignments
+      GROUP BY topic_slug
+    ) a ON a.topic_slug = t.slug
     LEFT JOIN (SELECT parent_slug, count(*)::integer AS child_count FROM topics GROUP BY parent_slug) c
       ON c.parent_slug = t.slug
     ORDER BY t.sort_order, t.title, t.slug

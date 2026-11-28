@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listAdminTopics } from "@/lib/admin/articles";
+import { listAdminTopics, listArticleOwners } from "@/lib/admin/articles";
 import AdminFeedback from "../../admin-feedback";
 import { AdminBackLink, AdminGate, AdminHeader, AdminPage } from "../../shell";
 import AdminArticleForm from "../editor";
@@ -9,14 +9,14 @@ export default function NewAdminArticle() {
   return (
     <AdminPage>
       <AdminGate render={async (session) => {
-        const topics = await listAdminTopics();
+        const [topics, owners] = await Promise.all([listAdminTopics(), listArticleOwners()]);
         return (
           <>
             <AdminHeader title="New article" session={session}>
               <AdminBackLink section="articles" />
             </AdminHeader>
             {topics.length
-              ? <AdminArticleForm topics={topics} />
+              ? <AdminArticleForm topics={topics} owners={owners} />
               : (
                 <AdminFeedback status="warning" className="max-w-3xl">
                   <Link href="/admin/topics/new" className={styles.backLink} prefetch={false}>Create a topic</Link>

@@ -11,11 +11,13 @@ export function DeleteArticle({
   slug,
   title,
   updatedToken,
+  draftToken = "",
   compact = false,
 }: {
   slug: string;
   title: string;
   updatedToken: string;
+  draftToken?: string;
   compact?: boolean;
 }) {
   const [result, remove, pending] = useActionState(deleteArticle, {});
@@ -43,6 +45,7 @@ export function DeleteArticle({
                   <form action={remove} aria-busy={pending}>
                     <input type="hidden" name="slug" value={slug} />
                     <input type="hidden" name="updatedToken" value={updatedToken} />
+                    <input type="hidden" name="draftToken" value={draftToken} />
                     <AlertDialog.Body>
                       <p><strong>{title}</strong> will be permanently deleted.</p>
                       {result.error && <AdminFeedback status="danger" className="mt-3">{result.error}</AdminFeedback>}

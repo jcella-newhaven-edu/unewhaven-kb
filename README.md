@@ -2,14 +2,18 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-Use Node.js 24 and PostgreSQL 19. Create a local PostgreSQL database, then apply the schema and load the sample content before starting the development server.
+Use Node.js 24 and PostgreSQL 19. Create a local PostgreSQL database, then apply the schema, sample content, and migrations before starting the development server.
 
 ```bash
 npm ci
 export DATABASE_URL='postgresql://<user>:<password>@localhost:5432/<database>'
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/schema.sql
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/dev-seed.sql
-npm run dev
+(
+  set -e
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/schema.sql -f db/dev-seed.sql
+  for migration in db/migrations/*.sql; do
+    psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
+  done
+) && npm run dev
 ```
 
 Next.js also reads `DATABASE_URL` from `.env.local`. Use your actual connection string and keep it out of version control.
@@ -22,7 +26,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 ## Database and builds
 
-`npm run build` reads PostgreSQL to prerender published pages. Apply `db/schema.sql` before building, and use the same database at runtime to keep prerendered content and search results consistent.
+`npm run build` reads PostgreSQL to prerender published pages. Apply `db/schema.sql` and the migrations before building, and use the same database at runtime to keep prerendered content and search results consistent.
 
 When transferring existing MongoDB content, use each document's `slug` as the primary key and omit `_id`. Map topic `order` and `parentSlug` to `sort_order` and `parent_slug`, using `NULL` for top-level topics. Map article `topicSlug` and `bodyText` to `topic_slug` and `body_text`. Store the TipTap body as JSON and preserve the `updated` timestamp. PostgreSQL generates the search index data from the article fields.
 
@@ -171,14 +175,15 @@ For example, the redirect URI for `https://kb.example.edu` is `https://kb.exampl
 
 If the reverse proxy enforces an upload limit, allow at least 6 MiB for requests to `/api/admin/article-images` to accommodate image uploads and multipart headers.
 
-Apply these migrations to an existing database before building the app. They can be run again safely.
+Apply these migrations to an existing database before building the app. They can be run again safely. The article workflow migration adds a baseline revision for each existing article using its saved content, topic assignments, and publication status.
 
 ```bash
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
   -f db/migrations/001-admin-auth.sql \
   -f db/migrations/002-article-topics-metadata.sql \
   -f db/migrations/003-article-images.sql \
-  -f db/migrations/004-topic-icons.sql
+  -f db/migrations/004-topic-icons.sql \
+  -f db/migrations/005-article-workflow.sql
 ```
 
 For an existing Compose deployment, rebuild the database image, run the migrations on its existing volume, and then rebuild the app. Use the environment file and project name of the running stack.
@@ -190,7 +195,8 @@ docker compose --env-file .env.dev -p unewhaven-kb-dev exec -T unewhaven-kb-db s
     -f /docker-entrypoint-initdb.d/03-admin-auth.sql \
     -f /docker-entrypoint-initdb.d/04-article-topics-metadata.sql \
     -f /docker-entrypoint-initdb.d/05-article-images.sql \
-    -f /docker-entrypoint-initdb.d/06-topic-icons.sql'
+    -f /docker-entrypoint-initdb.d/06-topic-icons.sql \
+    -f /docker-entrypoint-initdb.d/07-article-workflow.sql'
 docker compose --env-file .env.dev -p unewhaven-kb-dev up -d --build --wait
 ```
 

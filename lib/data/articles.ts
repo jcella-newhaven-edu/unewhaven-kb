@@ -22,7 +22,7 @@ const summaryFields = `a.slug, a.title, a.summary, a.topic_slug AS "topicSlug", 
   ARRAY(SELECT m.topic_slug FROM article_topic_memberships m WHERE m.article_slug = a.slug
         ORDER BY (m.topic_slug = a.topic_slug) DESC, m.topic_slug) AS "topicSlugs"`;
 
-/** One published article, or null if it doesn't exist. */
+/** One published article by its current slug or a historical URL. */
 export async function getArticle(slug: string) {
   "use cache";
   cacheLife("days");
@@ -31,7 +31,9 @@ export async function getArticle(slug: string) {
 
   const [article] = await queryRows<Article>(
     `SELECT ${summaryFields}, a.body, a.body_text AS "bodyText", a.published
-     FROM articles a WHERE a.slug = $1 AND a.published`,
+     FROM articles a
+     WHERE a.slug = COALESCE((SELECT article_slug FROM article_slug_redirects WHERE old_slug = $1), $1)
+       AND a.published`,
     [slug],
   );
   return article ?? null;

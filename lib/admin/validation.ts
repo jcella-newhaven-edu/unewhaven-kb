@@ -18,10 +18,16 @@ export type ArticleInput = {
   topicSlugs: string[];
   published: boolean;
   content: ArticleBody | null;
+  intent: "working-draft" | "apply" | undefined;
+  ownerId: string | null | undefined;
+  reviewDueOn: string | null | undefined;
 };
 
 const NEW_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const VERSION = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
+const ACCOUNT_ID = /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i;
+const REVIEW_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const POSTGRES_BIGINT_MAX = "9223372036854775807";
 const BLOCKS = [
   "paragraph", "heading", "bulletList", "orderedList", "blockquote", "codeBlock", "horizontalRule",
   "image", "articleTabs", "articleAccordion", "articleAlert",
@@ -83,6 +89,32 @@ export function validateArticleVersion(
   return { data: { slug, updatedToken } };
 }
 
+export function validateArticleEditVersion(
+  form: FormData,
+  slugField: "slug" | "originalSlug" = "originalSlug",
+): Validation<{ slug: string; updatedToken: string; draftToken: string | null }> {
+  const version = validateArticleVersion(form, slugField);
+  if ("fieldErrors" in version) return version;
+
+  const draftToken = form.has("draftToken") ? formString(form, "draftToken") : "";
+  if (draftToken === null || (draftToken !== "" && !VERSION.test(draftToken))) {
+    return { fieldErrors: { draftToken: "Reload this page before changing the working draft." } };
+  }
+
+  return { data: { ...version.data, draftToken: draftToken || null } };
+}
+
+export function validateArticleRevisionId(form: FormData) {
+  const id = formString(form, "revisionId") ?? "";
+  return /^[1-9]\d{0,18}$/.test(id) && (id.length < 19 || id <= POSTGRES_BIGINT_MAX) ? id : null;
+}
+
+function validReviewDate(value: string) {
+  if (!REVIEW_DATE.test(value) || value.startsWith("0000-")) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
 export function validateArticle(form: FormData, originalSlug?: string): Validation<ArticleInput> {
   const rawSlug = formString(form, "slug") ?? "";
   // Keep an existing URL exactly as supplied when the editor has left it unchanged.
@@ -93,6 +125,9 @@ export function validateArticle(form: FormData, originalSlug?: string): Validati
   const additional = form.getAll("additionalTopicSlug");
   const additionalTopics = additional.filter((value): value is string => typeof value === "string" && validTopicSlug(value));
   const published = formString(form, "published");
+  const intent = formString(form, "intent");
+  const owner = formString(form, "ownerId");
+  const review = formString(form, "reviewDueOn");
   const fieldErrors: Record<string, string> = {};
 
   if (rawSlug !== originalSlug) {
@@ -119,6 +154,15 @@ export function validateArticle(form: FormData, originalSlug?: string): Validati
   if (published !== "true" && published !== "false") {
     fieldErrors.published = "Choose Draft or Published.";
   }
+  if (form.has("intent") && intent !== "working-draft" && intent !== "apply") {
+    fieldErrors.intent = "Choose how to save the article.";
+  }
+  if (form.has("ownerId") && (owner === null || (owner !== "" && !ACCOUNT_ID.test(owner)))) {
+    fieldErrors.ownerId = "Choose a valid editorial account.";
+  }
+  if (form.has("reviewDueOn") && (review === null || (review !== "" && !validReviewDate(review)))) {
+    fieldErrors.reviewDueOn = "Enter a valid review date.";
+  }
 
   let content: ArticleBody | null = null;
   if (originalSlug === undefined || form.has("body")) {
@@ -131,7 +175,15 @@ export function validateArticle(form: FormData, originalSlug?: string): Validati
   }
 
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
-  return { data: { slug, title, summary: summary ?? "", topicSlug, topicSlugs: [topicSlug, ...additionalTopics], published: published === "true", content } };
+  return {
+    data: {
+      slug, title, summary: summary ?? "", topicSlug, topicSlugs: [topicSlug, ...additionalTopics],
+      published: published === "true", content,
+      intent: intent === "working-draft" || intent === "apply" ? intent : undefined,
+      ownerId: form.has("ownerId") ? owner || null : undefined,
+      reviewDueOn: form.has("reviewDueOn") ? review || null : undefined,
+    },
+  };
 }
 
 function validTopicSlug(value: string) {

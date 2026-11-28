@@ -105,7 +105,12 @@ async function currentTopic(client: PoolClient, slug: string) {
   const { rows } = await client.query<TopicVersion>(
     `SELECT t.xmin::text AS "updatedToken", NULLIF(t.parent_slug, '') AS "parentSlug",
             EXISTS (SELECT 1 FROM topics c WHERE c.parent_slug = t.slug) AS "hasChildren",
-            EXISTS (SELECT 1 FROM article_topic_memberships m WHERE m.topic_slug = t.slug) AS "hasArticles"
+            (
+              EXISTS (SELECT 1 FROM article_topic_memberships m WHERE m.topic_slug = t.slug)
+              OR EXISTS (
+                SELECT 1 FROM article_working_drafts d WHERE d.topic_slug = t.slug OR t.slug = ANY(d.topic_slugs)
+              )
+            ) AS "hasArticles"
      FROM topics t WHERE t.slug = $1`,
     [slug],
   );

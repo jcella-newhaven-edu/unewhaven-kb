@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Breadcrumbs } from "@heroui/react";
 import { getArticle, getArticleSlugs, readingMinutes } from "@/lib/data/articles";
 import { getTopicTrail } from "@/lib/data/topics";
@@ -18,6 +18,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps<"/articles/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   const article = await getArticle(slug);
+  if (article && article.slug !== slug) redirect(`/articles/${encodeURIComponent(article.slug)}`);
   return article ? { title: article.title, description: article.summary } : {};
 }
 
@@ -30,6 +31,7 @@ async function ArticleContent({ params }: Pick<PageProps<"/articles/[slug]">, "p
   const { slug } = await params;
   const article = await getArticle(slug);
   if (!article) notFound();
+  if (article.slug !== slug) redirect(`/articles/${encodeURIComponent(article.slug)}`);
 
   const trail = await getTopicTrail(article.topicSlug);
   const { content, headings } = prepareArticleBody(article.body, article.bodyText);

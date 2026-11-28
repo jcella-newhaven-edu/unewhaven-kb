@@ -37,6 +37,7 @@ const accountsVisibleToAdministrator = `
     ON viewer.id = $1 AND viewer.role = 'admin' AND viewer.tenant_id = account.tenant_id
 `;
 const uuidPattern = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
+const lastEditor = "CASE WHEN draft.updated >= a.updated THEN draft.last_editor_id ELSE a.last_editor_id END";
 
 async function requireAdministrator() {
   const session = await getAdminSession();
@@ -56,9 +57,10 @@ export async function listManagedUsers(): Promise<ManagedUser[]> {
        FROM articles WHERE author_id IS NOT NULL GROUP BY author_id
      ) authored ON authored.author_id = account.id
      LEFT JOIN (
-       SELECT last_editor_id, count(*)::integer AS total
-       FROM articles WHERE last_editor_id IS NOT NULL GROUP BY last_editor_id
-     ) last_edited ON last_edited.last_editor_id = account.id
+       SELECT (${lastEditor}) AS editor_id, count(*)::integer AS total
+       FROM articles a LEFT JOIN article_working_drafts draft ON draft.article_slug = a.slug
+       GROUP BY editor_id
+     ) last_edited ON last_edited.editor_id = account.id
      ORDER BY lower(account.display_name), account.id`,
     [viewer.id],
   );
@@ -77,11 +79,12 @@ export async function getManagedUser(id: string): Promise<{ user: ManagedUser; a
     if (!account) return null;
 
     const { rows: articles } = await client.query<ManagedUserArticle>(
-      `SELECT slug, title, published, published_at AS "publishedAt", updated,
-              COALESCE(author_id = $1, false) AS "isAuthor",
-              COALESCE(last_editor_id = $1, false) AS "isLastEditor"
-       FROM articles WHERE author_id = $1 OR last_editor_id = $1
-       ORDER BY updated DESC, slug`,
+      `SELECT a.slug, a.title, a.published, a.published_at AS "publishedAt", GREATEST(a.updated, draft.updated) AS updated,
+              COALESCE(a.author_id = $1, false) AS "isAuthor",
+              COALESCE((${lastEditor}) = $1, false) AS "isLastEditor"
+       FROM articles a LEFT JOIN article_working_drafts draft ON draft.article_slug = a.slug
+       WHERE a.author_id = $1 OR (${lastEditor}) = $1
+       ORDER BY updated DESC, a.slug`,
       [account.id],
     );
 

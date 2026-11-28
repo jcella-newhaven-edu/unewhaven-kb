@@ -1,15 +1,23 @@
 import { notFound } from "next/navigation";
-import { getAdminArticle, listAdminTopics, type AdminArticle } from "@/lib/admin/articles";
+import { getAdminArticle, listAdminTopics, listArticleOwners, listArticleRevisions, type AdminArticle, type AdminTopic, type ArticleRevision } from "@/lib/admin/articles";
 import { AdminBackLink, AdminGate, AdminHeader, AdminPage } from "../../shell";
 import AdminArticleForm from "../editor";
 import { DeleteArticle } from "../delete";
+import ArticleRevisions from "../revision-history";
 import { adminStyles as styles } from "../../admin-styles";
 
 const historyDate = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium", timeStyle: "short", timeZone: "UTC",
 });
 
-function ArticleHistory({ article, showAttribution }: { article: AdminArticle; showAttribution: boolean }) {
+function ArticleHistory({ article, topics, revisions, showAttribution }: {
+  article: AdminArticle;
+  topics: AdminTopic[];
+  revisions: ArticleRevision[];
+  showAttribution: boolean;
+}) {
+  const { slug, title, summary, topicSlug, topicSlugs, bodyText } = article.workingDraft ?? article;
+
   return (
     <section className={styles.detailsPanel} aria-label="Article history">
       <h2>Article history</h2>
@@ -39,6 +47,13 @@ function ArticleHistory({ article, showAttribution }: { article: AdminArticle; s
           </div>
         )}
       </dl>
+      <ArticleRevisions
+        current={{ slug, title, summary, topicSlug, topicSlugs, bodyText, published: article.published && !article.workingDraft }}
+        revisions={revisions}
+        topics={topics}
+        version={{ slug: article.slug, updatedToken: article.updatedToken, draftToken: article.workingDraft?.updatedToken ?? "" }}
+        showAttribution={showAttribution}
+      />
     </section>
   );
 }
@@ -54,8 +69,8 @@ export default function EditAdminArticle({
     <AdminPage>
       <AdminGate render={async (session) => {
         const { slug } = await params;
-        const [article, topics, query] = await Promise.all([
-          getAdminArticle(slug), listAdminTopics(), searchParams,
+        const [article, topics, owners, revisions, query] = await Promise.all([
+          getAdminArticle(slug), listAdminTopics(), listArticleOwners(), listArticleRevisions(slug), searchParams,
         ]);
         if (!article) notFound();
 
@@ -65,7 +80,7 @@ export default function EditAdminArticle({
               <AdminBackLink section="articles" />
             </AdminHeader>
             <AdminArticleForm
-              key={`${article.slug}:${article.updatedToken}`}
+              key={`${article.slug}:${article.updatedToken}:${article.workingDraft?.updatedToken ?? ""}`}
               article={{
                 slug: article.slug,
                 title: article.title,
@@ -76,12 +91,16 @@ export default function EditAdminArticle({
                 updatedToken: article.updatedToken,
                 body: article.body,
                 bodyText: article.bodyText,
+                workingDraft: article.workingDraft,
+                ownerId: article.ownerId,
+                reviewDueOn: article.reviewDueOn,
               }}
               topics={topics}
-              history={<ArticleHistory article={article} showAttribution={session.role === "admin"} />}
-              saved={query.saved === "1"}
+              owners={owners}
+              history={<ArticleHistory article={article} topics={topics} revisions={revisions} showAttribution={session.role === "admin"} />}
+              saved={typeof query.saved === "string" ? query.saved : undefined}
               deletion={session.role === "admin" && (
-                <DeleteArticle slug={article.slug} title={article.title} updatedToken={article.updatedToken} />
+                <DeleteArticle slug={article.slug} title={article.title} updatedToken={article.updatedToken} draftToken={article.workingDraftToken ?? ""} />
               )}
             />
           </>

@@ -10,7 +10,8 @@ type Topic = ValidatedTransfer["topics"][number];
 type Article = ValidatedTransfer["articles"][number];
 type Image = ValidatedTransfer["images"][number];
 type StoredTopic = { slug: string; parentSlug: string | null; revision: string };
-type StoredArticle = { slug: string; revision: string };
+type StoredArticle = { slug: string; revision: string; draftRevision: string | null };
+type StoredRedirect = { oldSlug: string; articleSlug: string };
 type StoredImage = { id: string; revision: string; contentType: string; digest: string | null };
 
 type TransferPlan = {
@@ -19,7 +20,7 @@ type TransferPlan = {
   images: Image[];
   summary: TransferSummary;
   issues: string[];
-  revisions: [StoredTopic[], StoredArticle[], StoredImage[]];
+  revisions: [StoredTopic[], StoredArticle[], StoredRedirect[], StoredImage[]];
 };
 
 function selectChanges<Entry extends { slug: string }>(
@@ -53,14 +54,32 @@ async function readPlan(client: PoolClient, data: ValidatedTransfer, mode: Trans
      ORDER BY slug`,
     [[...referencedTopics], data.topics.map(({ slug }) => slug)],
   );
+  const articleSlugs = data.articles.map(({ slug }) => slug);
   const { rows: storedArticles } = await client.query<StoredArticle>(
-    `SELECT slug, xmin::text AS revision FROM articles WHERE slug = ANY($1::text[]) ORDER BY slug`,
-    [data.articles.map(({ slug }) => slug)],
+    `SELECT a.slug, a.xmin::text AS revision, d.xmin::text AS "draftRevision"
+     FROM articles a LEFT JOIN article_working_drafts d ON d.article_slug = a.slug
+     WHERE a.slug = ANY($1::text[]) ORDER BY a.slug`,
+    [articleSlugs],
+  );
+  const { rows: redirects } = await client.query<StoredRedirect>(
+    `SELECT old_slug AS "oldSlug", article_slug AS "articleSlug"
+     FROM article_slug_redirects WHERE old_slug = ANY($1::text[]) ORDER BY old_slug`,
+    [articleSlugs],
   );
 
   const topics = selectChanges(data.topics, storedTopics, mode);
   const articles = selectChanges(data.articles, storedArticles, mode);
-  const issues = validateReferences(storedTopics, topics.changes, articles.changes);
+  const issues = redirects.slice(0, 20).map(({ oldSlug, articleSlug }) => (
+    `Article slug “${oldSlug}” is reserved by a redirect to “${articleSlug}”. Choose another slug.`
+  ));
+  const drafted = new Set(storedArticles.filter(({ draftRevision }) => draftRevision !== null).map(({ slug }) => slug));
+  for (const { slug, published } of articles.changes) {
+    if (issues.length >= 20) break;
+    if (!published && drafted.has(slug)) {
+      issues.push(`Article “${slug}” has a working draft. Publish or discard that draft before importing it as unpublished.`);
+    }
+  }
+  validateReferences(storedTopics, topics.changes, articles.changes, issues);
   const imagePlan = await resolveImages(client, articles.changes, data.images, issues);
 
   return {
@@ -74,18 +93,17 @@ async function readPlan(client: PoolClient, data: ValidatedTransfer, mode: Trans
       publishedArticles: articles.changes.filter(({ published }) => published).length,
     },
     issues,
-    revisions: [storedTopics, storedArticles, imagePlan.stored],
+    revisions: [storedTopics, storedArticles, redirects, imagePlan.stored],
   };
 }
 
-function validateReferences(stored: StoredTopic[], changes: Topic[], articles: Article[]) {
-  const issues: string[] = [];
+function validateReferences(stored: StoredTopic[], changes: Topic[], articles: Article[], issues: string[]) {
   const parents = new Map(stored.map(({ slug, parentSlug }) => [slug, parentSlug]));
   const changed = new Set(changes.map(({ slug }) => slug));
   for (const { slug, parentSlug } of changes) parents.set(slug, parentSlug);
 
   for (const [slug, parentSlug] of parents) {
-    if (issues.length >= 20) return issues;
+    if (issues.length >= 20) return;
     if (parentSlug === null || (!changed.has(slug) && !changed.has(parentSlug))) continue;
     if (!parents.has(parentSlug)) {
       issues.push(`Topic “${slug}” refers to missing parent “${parentSlug}”.`);
@@ -94,13 +112,12 @@ function validateReferences(stored: StoredTopic[], changes: Topic[], articles: A
     }
   }
   for (const { slug, topicSlug, additionalTopicSlugs } of articles) {
-    if (issues.length >= 20) return issues;
+    if (issues.length >= 20) return;
     for (const assigned of [topicSlug, ...additionalTopicSlugs]) {
       if (!parents.has(assigned)) issues.push(`Article “${slug}” refers to missing topic “${assigned}”.`);
-      if (issues.length >= 20) return issues;
+      if (issues.length >= 20) return;
     }
   }
-  return issues;
 }
 
 async function resolveImages(client: PoolClient, articles: Article[], images: Image[], issues: string[]) {
@@ -196,6 +213,7 @@ async function applyPlan(client: PoolClient, plan: TransferPlan, actorId: string
     slug,
     topicSlugs: [topicSlug, ...additionalTopicSlugs],
   }));
+  const membershipJson = JSON.stringify(memberships);
   await client.query(
     "DELETE FROM article_topics WHERE article_slug = ANY($1::text[])",
     [memberships.map(({ slug }) => slug)],
@@ -205,7 +223,18 @@ async function applyPlan(client: PoolClient, plan: TransferPlan, actorId: string
      SELECT incoming.slug, chosen.topic_slug
      FROM jsonb_to_recordset($1::jsonb) AS incoming(slug text, "topicSlugs" text[])
      CROSS JOIN LATERAL unnest(incoming."topicSlugs") AS chosen(topic_slug)`,
-    [JSON.stringify(memberships)],
+    [membershipJson],
+  );
+  // Record the imported canonical snapshot and keep any separate working draft.
+  await client.query(
+    `INSERT INTO article_revisions (
+       article_slug, slug, title, summary, topic_slug, topic_slugs, body, body_text, published, kind, editor_id
+     )
+     SELECT a.slug, a.slug, a.title, a.summary, a.topic_slug, incoming."topicSlugs", a.body, a.body_text, a.published,
+            CASE WHEN a.published THEN 'published' ELSE 'draft' END, $2::uuid
+     FROM articles a
+     JOIN jsonb_to_recordset($1::jsonb) AS incoming(slug text, "topicSlugs" text[]) ON incoming.slug = a.slug`,
+    [membershipJson, actorId],
   );
 }
 
@@ -222,9 +251,12 @@ export async function planContentTransfer(
         await client.query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
       } else {
         await client.query("SET LOCAL lock_timeout = '5s'");
-        // Match article editing's topic-before-article lock order.
+        // Match article editing's topic, slug namespace, then article lock order.
         await client.query("LOCK TABLE topics IN EXCLUSIVE MODE");
-        await client.query("LOCK TABLE articles, article_images IN SHARE ROW EXCLUSIVE MODE");
+        if (data.articles.length) {
+          await client.query("SELECT lock_article_slug_namespace()");
+          await client.query("LOCK TABLE articles, article_working_drafts, article_images IN SHARE ROW EXCLUSIVE MODE");
+        }
       }
 
       const plan = await readPlan(client, data, mode);

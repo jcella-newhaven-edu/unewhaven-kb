@@ -14,13 +14,16 @@ type AdminSearch = {
   q?: string | string[];
   sort?: string | string[];
   dir?: string | string[];
+  review?: string | string[];
 };
 
 const statuses = [
   { value: "all", label: "All articles" },
   { value: "draft", label: "Drafts" },
   { value: "published", label: "Published" },
+  { value: "working", label: "Working drafts" },
 ] as const;
+type ArticleStatus = (typeof statuses)[number]["value"];
 
 type ArticleSortKey = "title" | "status" | "author" | "published" | "updated";
 
@@ -34,12 +37,16 @@ const columns: (SortColumn<ArticleSortKey> & { className?: string })[] = [
 
 const defaultSort: SortState<ArticleSortKey> = { key: "updated", direction: "desc" };
 
+function draftIsLatestEdit(article: AdminArticleSummary) {
+  return article.workingDraftToken !== null && article.workingDraftToken >= article.updatedToken;
+}
+
 const sortValues: Record<ArticleSortKey, (article: AdminArticleSummary) => string | number | null> = {
   title: (article) => article.title,
   status: (article) => Number(article.published),
   author: (article) => article.authorName,
   published: (article) => article.publishedAt?.getTime() ?? null,
-  updated: (article) => article.updatedToken,
+  updated: (article) => draftIsLatestEdit(article) ? article.workingDraftToken : article.updatedToken,
 };
 
 const dateFormat = new Intl.DateTimeFormat("en-US", {
@@ -50,16 +57,26 @@ function isDefaultSort(sort: SortState<ArticleSortKey>) {
   return sort.key === defaultSort.key && sort.direction === defaultSort.direction;
 }
 
-function articleListHref(status: (typeof statuses)[number]["value"], search: string, sort: SortState<ArticleSortKey>) {
+function articleListHref(status: ArticleStatus, search: string, sort: SortState<ArticleSortKey>, reviewDue: boolean) {
   const params = new URLSearchParams();
   if (status !== "all") params.set("status", status);
   if (search) params.set("q", search);
+  if (reviewDue) params.set("review", "due");
   if (!isDefaultSort(sort)) {
     params.set("sort", sort.key);
     params.set("dir", sort.direction);
   }
   const query = params.toString();
   return query ? `/admin?${query}` : "/admin";
+}
+
+function matchesStatus(article: AdminArticleSummary, status: ArticleStatus) {
+  switch (status) {
+    case "published": return article.published;
+    case "draft": return !article.published;
+    case "working": return article.workingDraftUpdated !== null;
+    default: return true;
+  }
 }
 
 export default function AdminIndex({ searchParams }: { searchParams: Promise<AdminSearch> }) {
@@ -71,15 +88,22 @@ export default function AdminIndex({ searchParams }: { searchParams: Promise<Adm
           const [query, articles] = await Promise.all([searchParams, listAdminArticles()]);
           const showAttribution = session.role === "admin";
           const current = statuses.find(({ value }) => value === query.status)?.value ?? "all";
+          const reviewDue = query.review === "due";
           const search = typeof query.q === "string" ? query.q.trim().slice(0, 120) : "";
           const visibleColumns = columns.filter(({ key }) => key !== "author" || showAttribution);
           const sort = parseSort(query, visibleColumns, defaultSort);
-          const sortHref = (next: SortState<ArticleSortKey>) => articleListHref(current, search, next);
+          const sortHref = (next: SortState<ArticleSortKey>) => articleListHref(current, search, next, reviewDue);
           const term = search.toLowerCase();
           const published = articles.filter((article) => article.published).length;
-          const counts = { all: articles.length, draft: articles.length - published, published };
+          const counts = {
+            all: articles.length,
+            draft: articles.length - published,
+            published,
+            working: articles.filter((article) => article.workingDraftUpdated).length,
+          };
+          const reviewCount = articles.filter((article) => article.reviewDue).length;
           const entries = articles.filter((article) => (
-            (current === "all" || article.published === (current === "published"))
+            matchesStatus(article, current) && (!reviewDue || article.reviewDue)
             && (!term || [article.title, article.summary, ...article.topics.map((topic) => topic.title)]
               .some((value) => value.toLowerCase().includes(term)))
           ));
@@ -98,7 +122,7 @@ export default function AdminIndex({ searchParams }: { searchParams: Promise<Adm
                     {statuses.map(({ value, label }) => (
                       <Link
                         key={value}
-                        href={articleListHref(value, search, sort)}
+                        href={articleListHref(value, search, sort, reviewDue)}
                         aria-current={value === current ? "page" : undefined}
                         prefetch={false}
                         className="inline-flex items-center gap-[0.35rem] rounded-md px-[0.7rem] py-[0.4rem] text-sm font-semibold text-kb-muted hover:bg-kb-hover hover:text-kb-heading aria-[current=page]:bg-kb-hover aria-[current=page]:text-kb-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus max-[42rem]:px-2"
@@ -108,8 +132,17 @@ export default function AdminIndex({ searchParams }: { searchParams: Promise<Adm
                       </Link>
                     ))}
                   </nav>
+                  <Link
+                    href={articleListHref(current, search, sort, !reviewDue)}
+                    aria-current={reviewDue ? "true" : undefined}
+                    prefetch={false}
+                    className="inline-flex items-center gap-2 rounded-lg border border-kb-line bg-kb-panel px-3 py-2 text-sm font-semibold text-kb-muted hover:bg-kb-hover hover:text-kb-heading aria-[current=true]:bg-kb-highlight aria-[current=true]:text-kb-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                  >
+                    Due for review <span className="text-xs">{reviewCount}</span>
+                  </Link>
                   <form action="/admin" method="get" className="flex min-w-[min(19rem,100%)] max-w-[27rem] flex-1 items-center gap-2 [&>[data-slot=search-field]]:min-w-0 [&>[data-slot=search-field]]:flex-1 [&>button]:shrink-0">
                     {current !== "all" && <input type="hidden" name="status" value={current} />}
+                    {reviewDue && <input type="hidden" name="review" value="due" />}
                     {!isDefaultSort(sort) && (
                       <>
                         <input type="hidden" name="sort" value={sort.key} />
@@ -141,6 +174,9 @@ export default function AdminIndex({ searchParams }: { searchParams: Promise<Adm
                     <tbody className={adminTable.body}>
                       {entries.map((article) => {
                         const href = `/admin/articles/${encodeURIComponent(article.slug)}`;
+                        const draftLatest = draftIsLatestEdit(article);
+                        const edited = (draftLatest && article.workingDraftUpdated) || article.updated;
+                        const editorName = draftLatest ? article.workingDraftEditorName : article.lastEditorName;
                         return (
                           <tr key={article.slug} className={adminTable.row}>
                             <th scope="row" className={adminTable.name}>
@@ -151,6 +187,14 @@ export default function AdminIndex({ searchParams }: { searchParams: Promise<Adm
                                 <span className={adminStyles.rowDetail}>
                                   {article.topics.length ? article.topics.map(({ title }) => title).join(" · ") : article.topicTitle}
                                 </span>
+                                {article.workingDraftUpdated && <span className={adminStyles.rowDetail}>Working draft</span>}
+                                {article.ownerName && <span className={adminStyles.rowDetail}>Owner {article.ownerName}</span>}
+                                {article.reviewDueOn && (
+                                  <span className={adminStyles.rowDetail}>
+                                    {article.reviewDue ? "Review due " : "Review on "}
+                                    <time dateTime={article.reviewDueOn}>{dateFormat.format(new Date(article.reviewDueOn))}</time>
+                                  </span>
+                                )}
                               </div>
                             </th>
                             <td data-label="Status" className={adminTable.cell}>
@@ -169,16 +213,16 @@ export default function AdminIndex({ searchParams }: { searchParams: Promise<Adm
                                 : <span className={adminStyles.rowDetail}>Not recorded</span>}
                             </td>
                             <td data-label="Last edited" className={adminTable.cell}>
-                              <time dateTime={article.updated.toISOString()}>{dateFormat.format(article.updated)}</time>
+                              <time dateTime={edited.toISOString()}>{dateFormat.format(edited)}</time>
                               {showAttribution && (
-                                <span className={adminStyles.rowDetail}>{article.lastEditorName ?? "Editor not recorded"}</span>
+                                <span className={adminStyles.rowDetail}>{editorName ?? "Editor not recorded"}</span>
                               )}
                             </td>
                             <td data-label="Actions" className={adminTable.cell}>
                               <div className="flex flex-wrap items-center gap-1">
                                 <AdminEditLink href={href} title={article.title} />
                                 {showAttribution && (
-                                  <DeleteArticle compact slug={article.slug} title={article.title} updatedToken={article.updatedToken} />
+                                  <DeleteArticle compact slug={article.slug} title={article.title} updatedToken={article.updatedToken} draftToken={article.workingDraftToken ?? ""} />
                                 )}
                               </div>
                             </td>
@@ -191,8 +235,11 @@ export default function AdminIndex({ searchParams }: { searchParams: Promise<Adm
                   <div className={adminStyles.emptyResults}>
                     <p>{search
                       ? "No articles match this search."
-                      : current === "all" ? "No articles yet." : current === "draft" ? "No drafts." : "No published articles."}</p>
-                    {search && <Link className={adminStyles.backLink} href={articleListHref(current, "", sort)} prefetch={false}>Clear search</Link>}
+                      : reviewDue ? "No matching articles are due for review."
+                        : current === "all" ? "No articles yet."
+                          : current === "draft" ? "No drafts."
+                            : current === "working" ? "No working drafts." : "No published articles."}</p>
+                    {search && <Link className={adminStyles.backLink} href={articleListHref(current, "", sort, reviewDue)} prefetch={false}>Clear search</Link>}
                   </div>
                 )}
               </div>
