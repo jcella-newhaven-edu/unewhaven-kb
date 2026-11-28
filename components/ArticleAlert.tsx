@@ -5,7 +5,7 @@ import { articleAlertStatuses, type ArticleAlertStatus } from "@/lib/article-ale
 const statusColors: Record<ArticleAlertStatus, string> = {
   accent: "text-unh-tertiary dark:text-unh-tertiary-light",
   success: "text-emerald-700 dark:text-emerald-400",
-  warning: "text-amber-700 dark:text-unh-secondary",
+  warning: "text-amber-500 dark:text-unh-secondary",
   danger: "text-rose-700 dark:text-rose-400",
 };
 
